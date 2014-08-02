@@ -403,7 +403,11 @@ namespace ztl
 			return !( operator==( right ) );
 		}
 	};
-
+	enum class group_type:bool
+	{
+		if_default_empty,
+		none,
+	};
 	// group_jion_iter
 	template<typename outer_iterator_type, typename inner_iterator_type, typename outer_key_selector_type,
 		typename inner_key_selector_type, typename result_selector_type>
@@ -417,7 +421,21 @@ namespace ztl
 		inner_key_selector_type inner_key_selector;
 		outer_key_selector_type outer_key_selector;
 		result_selector_type	result_selector;
+		group_type				empty;
 	public:
+		decltype( auto ) get_result_list() const
+		{
+			using inner_value_type = typename std::iterator_traits<inner_iterator_type>::value_type;
+			std::vector<inner_value_type> value_list;
+			for(auto next2 = first2; next2 != last2; ++next2)
+			{
+				if(outer_key_selector(*first1) == inner_key_selector(*next2))
+				{
+					value_list.push_back(*next2);
+				}
+			}
+			return std::move(value_list);
+		}
 		auto operator*( )->typename 
 			std::remove_reference<decltype( 
 			result_selector(
@@ -425,16 +443,10 @@ namespace ztl
 			std::iterator_traits<inner_iterator_type>::value_type
 			>>()) )>::type const
 		{
-			using first2_value_type = typename std::iterator_traits<inner_iterator_type>::value_type;
-			std::vector<first2_value_type> value_list;
-			for(auto next2 = first2; next2 != last2;++next2)
-			{
-				if(outer_key_selector(*first1) == inner_key_selector(*next2))
-				{
-					value_list.push_back(*next2);
-				}
-			}
-			return result_selector(*first1, value_list);
+			
+			
+			return result_selector(*first1, get_result_list());
+
 		}
 	public:
 		COMMON_ITERATOR_DECLARE(
@@ -448,20 +460,43 @@ namespace ztl
 			const inner_iterator_type& first2_, const inner_iterator_type& last2_,
 			const outer_key_selector_type& outer_key_selector_,
 			const inner_key_selector_type& inner_key_selector_,
-			const result_selector_type& result_selector_)
+			const result_selector_type& result_selector_,group_type empty_ = group_type::if_default_empty)
 			:
 			first1(first1_), last1(last1_), first2(first2_), last2(last2_),
 			inner_key_selector(inner_key_selector_), outer_key_selector(outer_key_selector_),
-			result_selector(result_selector_)
+			result_selector(result_selector_), empty(empty_)
 		{
+
 		}
 
 
 		self_type& operator++( )
 		{
-			if (first1!=last1)
+			if (empty == group_type::none)
 			{
-				++first1;
+				if(first1 != last1)
+				{
+					++first1;
+				}
+			}
+			else
+			{
+				if(first1 != last1)
+				{
+					++first1;
+				}
+				while(first1 != last1)
+				{
+					auto value_list = get_result_list();
+					if(value_list.empty())
+					{
+						++first1;
+					}
+					else
+					{
+						break;
+					}
+				}
 			}
 			return *this;
 		}
@@ -653,14 +688,15 @@ namespace ztl
 					inner_join_type(end(),end(),inner_end,inner_end,
 					out_key_selector,inner_key_selector,reuslt_selector));
 		}
+		//分组外连接和分组内连接搞定
 		template<typename inner_iterator_type, typename outer_key_selector_type,
 			typename inner_key_selector_type, typename result_selector_type>
-			decltype( auto ) inner_group_join(
+			decltype( auto ) group_join(
 			const inner_iterator_type& inner_begin,
 			const inner_iterator_type& inner_end,
 			const outer_key_selector_type& out_key_selector,
 			const inner_key_selector_type& inner_key_selector,
-			const result_selector_type& reuslt_selector)
+			const result_selector_type& reuslt_selector,const group_type empty = group_type::if_default_empty)
 		{
 				using group_join_type = group_jion_iterator<
 					iterator_type,
@@ -671,18 +707,32 @@ namespace ztl
 
 				return enumerable<group_join_type>(
 					group_join_type(begin(), end(), inner_begin, inner_end,
-					out_key_selector, inner_key_selector, reuslt_selector),
+					out_key_selector, inner_key_selector, reuslt_selector, empty),
 					group_join_type(end(), end(), inner_end, inner_end,
-					out_key_selector, inner_key_selector, reuslt_selector));
-				//下面写法效率不如上面的
-			/*	return inner_join(inner_begin, inner_end, out_key_selector, inner_key_selector, [&result_selector](auto&& outer_element,auto&& inner_element)
-				{
-					return std::make_pair(out_key_selector(outer_element), result_selector(outer_element, inner_element));
-				}).group_by([](auto&& element)
-				{
-					return element.first;
-				});*/
+					out_key_selector, inner_key_selector, reuslt_selector, empty));
 		}
+
+		template<typename inner_iterator_type, typename outer_key_selector_type,
+			typename inner_key_selector_type, typename result_selector_type>
+			decltype( auto ) outer_join(
+			const inner_iterator_type& inner_begin,
+			const inner_iterator_type& inner_end,
+			const outer_key_selector_type& out_key_selector,
+			const inner_key_selector_type& inner_key_selector,
+			const result_selector_type& reuslt_selector)
+		{
+			return	group_join(begin(), end(), inner_begin, inner_end, out_key_selector, inner_key_selector, [](auto&& outer_element,auto&& inner_list)
+				{
+					return std::make_pair(outer_element, inner_list);
+				}).select_many([&result_selector](auto&& pair_element)
+				{
+					return pair_element.second;
+				}, [&result_selector](auto&& pair_element,auto&& element)
+				{
+					return result_selector(pair_element.first, element);
+				});
+		}
+
 		template<typename key_selector_type>
 		decltype( auto ) group_by(const key_selector_type& key_selector)
 		{
