@@ -542,7 +542,9 @@ namespace ztl
 	class enumerable
 	{
 	public:
-		//COMMON_ITERATOR_DECLARE;
+		COMMON_ITERATOR_DECLARE(
+			typename std::iterator_traits<iterator_type>::difference_type, 
+			typename std::iterator_traits<iterator_type>::value_type,enumerable);
 	private:
 		iterator_type	_begin;
 		iterator_type	_end;
@@ -607,7 +609,7 @@ namespace ztl
 		}
 
 		template<typename predicate_type>
-		decltype( auto ) order_by(const predicate_type& key_selector, const order& cending)
+		decltype( auto ) order_by(const predicate_type& key_selector, order cending=order::ascending)
 		{
 			std::function<bool(const value_type& left, const value_type& right)>functor;
 			auto& result = std::make_shared<std::vector<value_type>>(_begin, _end);
@@ -778,6 +780,30 @@ namespace ztl
 			});
 			std::cout << std::endl;*/
 		}
+
+		template<typename container_type>
+		container_type transform()
+		{
+			container_type<value_type> container;
+			for(auto it = begin(); it != end();++it)
+			{
+				container.insert(std::end(container), *it);
+			}
+			return std::move(container);
+		}
+#define TO_CONTAINER_FUNCTION(STL_CONTAINER_NAME) \
+	decltype(auto) to_##STL_CONTAINER_NAME()\
+		{\
+		return transform<std::STL_CONTAINER_NAME>();\
+		}
+
+		TO_CONTAINER_FUNCTION(vector);
+		TO_CONTAINER_FUNCTION(unordered_map);
+		TO_CONTAINER_FUNCTION(unordered_multimap);
+		TO_CONTAINER_FUNCTION(unordered_set);
+		TO_CONTAINER_FUNCTION(unordered_multiset);
+
+#undef TO_CONTAINER_FUNCTION
 	};
 
 	template<typename iterator_type>

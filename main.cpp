@@ -48,6 +48,17 @@ void test_select()
 		return a.Pets;
 	}).equal({vector<string>{"Scruffy", "Sam"}, vector<string>{"Walker", "Sugar"}, vector<string>{"Scratches", "Diesel"}, vector<string>{"Dusty"}}));
 }
+void test_order_by()
+{
+	int xs[] = {7, 1, 12, 2, 8, 3, 11, 4, 9, 5, 13, 6, 10};
+	int ys[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+	int zs[] = {10, 1, 11, 2, 12, 3, 13, 4, 5, 6, 7, 8, 9};
+
+	assert(ztl::from(xs).order_by([](int x)
+	{
+		return x;
+	}).equal(ys));
+}
 void test_select_many()
 {
 	vector<PetOwner> petOwners =
@@ -107,6 +118,7 @@ void test_inner_jion()
 int main()
 {
 	test_select();
+	test_order_by();
 	test_select_many();
 	test_inner_jion();
 	/*ztl::from(petOwners).select_many([](auto&& a)
