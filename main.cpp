@@ -185,25 +185,20 @@ void test_inner_jion()
 
 	vector<Person> people = {magnus, terry, charlotte};
 	vector<Pet> pets =  {barley, boots, whiskers, daisy};
-	std::function< const std::string (const Person&)> person_functor = [](const Person& person)
-	{
-		return person.Name;
-	};
-	std::function< const std::string ( const Pet& )> pet_functor = [](const Pet&pet)
-	{
-		return pet.Owner.Name;
-	};
-	std::function<std::pair<const std::string, const std::string>(const Person&, const Pet&)> result_functor = [](const Person& person, const Pet&pet)
-	{
-		return std::make_pair(person.Name, pet.Name);
-	};
-	//vector<std::pair<std::string, std::string>> result_list = {};
 	auto query =
 		ztl::from(people).inner_join(pets.begin(), pets.end(),
-		person_functor,
-		pet_functor,
-		result_functor
-		).print_pair();
+		[](auto&& person)
+	{
+		return person.Name;
+	},
+		[](auto&& pet)
+	{
+		return pet.Owner.Name;
+	},
+		[](auto&&  person, auto&& pet)
+	{
+		return std::make_pair(person.Name, pet.Name);
+	}).print_pair();
 
 }
 void test_where()
@@ -345,7 +340,7 @@ void test_inner_group_jion()
 	},
 		[&uu](auto&& person, auto&& petCollection)
 	{
-		return std::make_pair(person, petCollection);// ztl::from(petCollection).select(uu).to_vector());
+		return std::make_pair(person.Name, ztl::from(petCollection).select(uu).to_vector());
 	});
 
 	for(auto obj = query.begin(); obj != query.end();)
@@ -353,14 +348,14 @@ void test_inner_group_jion()
 		auto result = *obj;
 
 		//// Output the owner's name.
-		cout << result.first.Name << ":" << endl;
+		cout << result.first << ":" << endl;
 		////// Output each of the owner's pet's names.
 		////
 		for(auto it = result.second.begin();
 			it != result.second.end();
 			++it)
 		{
-			cout << ( *it ).Name << endl;
+			cout << ( *it ) << endl;
 		}
 		++obj;
 	}
