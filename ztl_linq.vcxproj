@@ -78,7 +78,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="help.h" />
+    <ClInclude Include="check_type.hpp" />
     <ClInclude Include="linq.h" />
   </ItemGroup>
   <ItemGroup>

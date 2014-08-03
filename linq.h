@@ -5,8 +5,16 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include "check_type.hpp"
 namespace ztl
 {
+#define COMMON_ITERATOR_DECLARE(SELF_TYPE,ITEATOR_DIFFERENCE_TYPE) \
+	using self_type = SELF_TYPE;\
+	using value_type		= decltype( *std::declval<self_type>() );\
+	using pointer			= value_type*;\
+	using reference			= value_type&;\
+	using difference_type	=typename std::iterator_traits<ITEATOR_DIFFERENCE_TYPE>::difference_type;\
+	using iterator_category = std::forward_iterator_tag;
 #define STRUCT_NAME(NAME) \
 	struct NAME \
 	{ \
@@ -24,6 +32,10 @@ namespace ztl
 	STRUCT_NAME(outer_iterator_type);
 
 #undef STRUCT_NAME
+	
+#define RETURN_VALUE_TYPE(RETURN_VALUE)\
+	typename std::remove_reference<decltype(RETURN_VALUE)>::type
+
 
 	template<typename UnaryPredicateType>
 	struct unary_negate
@@ -58,24 +70,23 @@ namespace ztl
 		return first1 == last1 && first2 == last2;
 	}
 
-#define COMMON_ITERATOR_DECLARE(VALUE_TYPE,DIFFERENCE_TYPE,SELF_TYPE) \
-	using value_type		= VALUE_TYPE;\
-	using pointer			= value_type*;\
-	using reference			= value_type&;\
-	using difference_type	= DIFFERENCE_TYPE;\
-	using iterator_category = std::forward_iterator_tag;\
-	using self_type = SELF_TYPE;
 	//iterator
 
 	//where
 	template<typename iterator_type, typename predicate_type>
 	class where_iterator
 	{
+	private:
+		iterator_type iterator;
+		iterator_type end;
+		predicate_type pred;
 	public:
-		COMMON_ITERATOR_DECLARE(
-			typename std::iterator_traits<iterator_type>::value_type,
-			typename std::iterator_traits<iterator_type>::difference_type,
-			where_iterator);
+		auto operator*( )->RETURN_VALUE_TYPE(*iterator) const
+		{
+			return *iterator;
+		}
+	public:
+		COMMON_ITERATOR_DECLARE(where_iterator,iterator_type);
 	public:
 		where_iterator() = delete;
 		where_iterator(const iterator_type& _iterator, const iterator_type& _end, const predicate_type& _pred) :iterator(_iterator), end(_end), pred(_pred)
@@ -99,10 +110,7 @@ namespace ztl
 			}
 		}
 	public:
-		value_type operator*( ) const
-		{
-			return *iterator;
-		}
+		
 		self_type& operator++( )
 		{
 			++iterator;
@@ -128,10 +136,6 @@ namespace ztl
 			return !( operator==( right ) );
 		}
 
-	private:
-		iterator_type iterator;
-		iterator_type end;
-		predicate_type pred;
 	};
 
 	//select
@@ -143,22 +147,21 @@ namespace ztl
 		iterator_type iterator;
 		selector_type selector;
 	public:
-		
-		COMMON_ITERATOR_DECLARE(
-			typename std::result_of<selector_type(const typename std::iterator_traits<iterator_type>::value_type&)>::type,
-			typename std::iterator_traits<iterator_type>::difference_type,
-			select_iterator);
+		auto operator*( )->
+			RETURN_VALUE_TYPE(selector(*iterator)) const
+		{
+			return selector(*iterator);
+		}
+		COMMON_ITERATOR_DECLARE(select_iterator,iterator_type);
 	public:
 		select_iterator() = delete;
 		select_iterator(const iterator_type& _iterator, const selector_type& _selector) :iterator(_iterator), selector(_selector)
 		{
+
 		}
 
 	public:
-		value_type operator*( ) const
-		{
-			return selector(*iterator);
-		}
+		
 		self_type& operator++( )
 		{
 			++iterator;
@@ -193,32 +196,17 @@ namespace ztl
 		result_selector_type			result_selector;
 		int								subindex;
 		int								current_size;
-	private:
-		void move_iterator()
-		{
-			if(iterator != end)
-			{
-				while(iterator != end && ( collection_selector(*iterator) ).size() == 0)
-				{
-					++iterator;
-				}
-				current_size = ( collection_selector(*iterator) ).size();
-				subindex = 0;
-			}
-		}
+	
 	public:
 		
 		auto operator*( )
-			->decltype( result_selector(
-			*iterator,
-			*std::next(
-			collection_selector(*iterator).begin(),
-			subindex)) ) const
+			->RETURN_VALUE_TYPE(result_selector(*iterator, 
+			*std::next(collection_selector(*iterator).begin(), subindex))) const
 		{
 			return result_selector(*iterator, *std::next(collection_selector(*iterator).begin(), subindex));
 		}
 		//这个方法好啊!!!泪奔┭┮﹏┭┮;
-		COMMON_ITERATOR_DECLARE(decltype(*std::declval<select_many_iterator>()), typename std::iterator_traits<iterator_type>::difference_type, select_many_iterator);
+		COMMON_ITERATOR_DECLARE(select_many_iterator,iterator_type);
 	public:
 		select_many_iterator() = delete;
 		select_many_iterator(const iterator_type& _iterator, const iterator_type& _end,
@@ -229,8 +217,6 @@ namespace ztl
 			move_iterator();
 		}
 	public:
-		
-
 		self_type& operator++( )
 		{
 			if(iterator != end)
@@ -264,6 +250,19 @@ namespace ztl
 		{
 			return !( operator==( right ) );
 		}
+	private:
+		void move_iterator()
+		{
+			if(iterator != end)
+			{
+				while(iterator != end && ( collection_selector(*iterator) ).size() == 0)
+				{
+					++iterator;
+				}
+				current_size = ( collection_selector(*iterator) ).size();
+				subindex = 0;
+			}
+		}
 	};
 
 	//zip
@@ -278,14 +277,13 @@ namespace ztl
 		result_selector_type	result_selector;
 	public:
 		auto operator*( )
-			->decltype( result_selector(*first1, *first2) ) const
+			->RETURN_VALUE_TYPE(result_selector(*first1, *first2)) const
 		{
 			return result_selector(*first1, *first2);
 		}
 
-		COMMON_ITERATOR_DECLARE(decltype(*std::declval<zip_iterator>()),
-			typename std::iterator_traits<iterator_type1>::difference_type,
-			zip_iterator);
+		COMMON_ITERATOR_DECLARE(zip_iterator,
+			iterator_type1);
 	public:
 		zip_iterator(const iterator_type1& _first1, const iterator_type1& _last1,
 			const iterator_type2& _first2, const iterator_type2& _last2,
@@ -339,15 +337,14 @@ namespace ztl
 		result_selector_type	result_selector;
 		inner_iterator_type		next2;
 	public:
-		auto operator*( )->decltype( result_selector(*first1, *next2) )
+		auto operator*( )->RETURN_VALUE_TYPE(result_selector(*first1, *next2)) const
 		{
 			return result_selector(*first1, *next2);
 		}
 	public:
 		COMMON_ITERATOR_DECLARE(
-			decltype(*std::declval<inner_join_iterator>()),
-			typename std::iterator_traits<outer_iterator_type>::difference_type,
-			inner_join_iterator);
+			inner_join_iterator,
+			outer_iterator_type);
 	public:
 		inner_join_iterator() = delete;
 		inner_join_iterator(
@@ -408,7 +405,7 @@ namespace ztl
 		if_default_empty,
 		none,
 	};
-	// group_jion_iter
+	//[outer] group_jion_iter
 	template<typename outer_iterator_type, typename inner_iterator_type, typename outer_key_selector_type,
 		typename inner_key_selector_type, typename result_selector_type>
 	class group_jion_iterator
@@ -421,9 +418,13 @@ namespace ztl
 		inner_key_selector_type inner_key_selector;
 		outer_key_selector_type outer_key_selector;
 		result_selector_type	result_selector;
-		group_type				empty;
 	public:
-		decltype( auto ) get_result_list() const
+		
+		auto operator*( )->RETURN_VALUE_TYPE(
+			result_selector(
+			*first1, std::declval<std::vector<typename 
+			std::iterator_traits<inner_iterator_type>::value_type
+			>>()) ) const
 		{
 			using inner_value_type = typename std::iterator_traits<inner_iterator_type>::value_type;
 			std::vector<inner_value_type> value_list;
@@ -434,25 +435,12 @@ namespace ztl
 					value_list.push_back(*next2);
 				}
 			}
-			return std::move(value_list);
-		}
-		auto operator*( )->typename 
-			std::remove_reference<decltype( 
-			result_selector(
-			*first1, std::declval<std::vector<typename 
-			std::iterator_traits<inner_iterator_type>::value_type
-			>>()) )>::type const
-		{
-			
-			
-			return result_selector(*first1, get_result_list());
-
+			return result_selector(*first1, value_list);
 		}
 	public:
 		COMMON_ITERATOR_DECLARE(
-			decltype( *std::declval<group_jion_iterator>() ),
-			typename std::iterator_traits<outer_iterator_type>::difference_type,
-			group_jion_iterator);
+			 group_jion_iterator,
+			 outer_iterator_type);
 	public:
 		group_jion_iterator() = delete;
 		group_jion_iterator(
@@ -460,11 +448,11 @@ namespace ztl
 			const inner_iterator_type& first2_, const inner_iterator_type& last2_,
 			const outer_key_selector_type& outer_key_selector_,
 			const inner_key_selector_type& inner_key_selector_,
-			const result_selector_type& result_selector_,group_type empty_ = group_type::if_default_empty)
+			const result_selector_type& result_selector_)
 			:
 			first1(first1_), last1(last1_), first2(first2_), last2(last2_),
 			inner_key_selector(inner_key_selector_), outer_key_selector(outer_key_selector_),
-			result_selector(result_selector_), empty(empty_)
+			result_selector(result_selector_)
 		{
 
 		}
@@ -472,39 +460,14 @@ namespace ztl
 
 		self_type& operator++( )
 		{
-			if (empty == group_type::none)
-			{
-				if(first1 != last1)
-				{
-					++first1;
-				}
-			}
-			else
-			{
-				if(first1 != last1)
-				{
-					++first1;
-				}
-				while(first1 != last1)
-				{
-					auto value_list = get_result_list();
-					if(value_list.empty())
-					{
-						++first1;
-					}
-					else
-					{
-						break;
-					}
-				}
-			}
+			++first1;
 			return *this;
 		}
 
 		self_type operator++( int )
 		{
 			self_type temp = *this;
-			++iterator;
+			++(*this);
 			return temp;
 		}
 		bool operator==( const self_type& right )
@@ -525,14 +488,16 @@ namespace ztl
 	template<typename iterator_type, typename container_type>
 	class storage_iterator<iterator_type, std::shared_ptr<container_type>>
 	{
-	public:
-		COMMON_ITERATOR_DECLARE(typename std::iterator_traits<iterator_type>::value_type,
-			typename std::iterator_traits<iterator_type>::difference_type,
-			storage_iterator
-			);
 	private:
 		iterator_type iterator;
 		std::shared_ptr<container_type> shared_container;
+	public:
+		auto operator*( )->RETURN_VALUE_TYPE(*iterator) const
+		{
+			return *iterator;
+		}
+	public:
+		COMMON_ITERATOR_DECLARE(storage_iterator,iterator_type);
 	public:
 		storage_iterator() = delete;
 		storage_iterator(const iterator_type& _iterator, const std::shared_ptr<container_type>& _container)
@@ -540,10 +505,7 @@ namespace ztl
 		{
 		}
 	public:
-		auto operator*( )->decltype(*iterator) const
-		{
-			return *iterator;
-		}
+		
 		self_type& operator++( )
 		{
 			++iterator;
@@ -577,9 +539,12 @@ namespace ztl
 	class enumerable
 	{
 	public:
-		COMMON_ITERATOR_DECLARE(
-			typename std::iterator_traits<iterator_type>::difference_type, 
-			typename std::iterator_traits<iterator_type>::value_type,enumerable);
+		using self_type = enumerable; 
+			using value_type = typename std::iterator_traits<iterator_type>::value_type;
+			using pointer = value_type*; 
+			using reference = value_type&; 
+			using difference_type = typename std::iterator_traits<iterator_type>::difference_type; 
+			using iterator_category = std::forward_iterator_tag;
 	private:
 		iterator_type	_begin;
 		iterator_type	_end;
@@ -588,15 +553,16 @@ namespace ztl
 		{
 		}
 		template<typename container_type>
-		enumerable(const container_type& container) : enumerable(std::begin(container), std::end(container))
+		enumerable(const container_type& container)
+			: _begin(container.begin()), _end(container.end())
 		{
 		}
 
-		auto begin()->decltype( _begin ) const
+		iterator_type begin() const
 		{
 			return _begin;
 		}
-		auto  end()->decltype( _end ) const
+		iterator_type  end() const
 		{
 			return _end;
 		}
@@ -646,12 +612,13 @@ namespace ztl
 		template<typename predicate_type>
 		decltype( auto ) order_by(const predicate_type& key_selector, order cending=order::ascending)
 		{
-			std::function<bool(const value_type& left, const value_type& right)>functor;
+			std::function<bool(const value_type&, const value_type&)>functor;
 			auto& result = std::make_shared<std::vector<value_type>>(_begin, _end);
 			if(cending == order::ascending)
 			{
 				functor = [&key_selector](auto&& left, auto&& right)
 				{
+					
 					return key_selector(left) < key_selector(right);
 				};
 			}
@@ -666,9 +633,66 @@ namespace ztl
 			return from_shared(result->begin(), result->end(), result);
 		}
 
+
+		////分组外连接和分组内连接搞定
+
 		template<typename inner_iterator_type, typename outer_key_selector_type,
 			typename inner_key_selector_type, typename result_selector_type>
-			decltype(auto) inner_join(
+			decltype( auto ) outer_group_join(
+			const inner_iterator_type& inner_begin,
+			const inner_iterator_type& inner_end,
+			const outer_key_selector_type& out_key_selector,
+			const inner_key_selector_type& inner_key_selector,
+			const result_selector_type& reuslt_selector)
+		{
+				using outer_group_join_type = group_jion_iterator<
+					iterator_type,
+					inner_iterator_type,
+					outer_key_selector_type,
+					inner_key_selector_type,
+					result_selector_type>;
+				return enumerable<outer_group_join_type>(
+					outer_group_join_type(begin(), end(), inner_begin, inner_end,
+					out_key_selector, inner_key_selector, reuslt_selector),
+					outer_group_join_type(end(), end(), inner_end, inner_end,
+					out_key_selector, inner_key_selector, reuslt_selector));
+		}
+		template<typename inner_iterator_type, typename outer_key_selector_type,
+			typename inner_key_selector_type, typename result_selector_type>
+			decltype( auto ) inner_group_join(
+			const inner_iterator_type& inner_begin,
+			const inner_iterator_type& inner_end,
+			const outer_key_selector_type& out_key_selector,
+			const inner_key_selector_type& inner_key_selector,
+			const result_selector_type& reuslt_selector)
+		{
+				auto& selector = [](auto&& first, auto&& second)
+				{
+					return std::make_pair(first, second);
+				};
+				using inner_group_join_type = group_jion_iterator<
+					iterator_type,
+					inner_iterator_type,
+					outer_key_selector_type,
+					inner_key_selector_type,
+					typename std::remove_reference<decltype( selector ) >::type>;
+				auto result = enumerable<inner_group_join_type>(
+					inner_group_join_type(begin(), end(), inner_begin, inner_end,
+					out_key_selector, inner_key_selector, selector),
+					inner_group_join_type(end(), end(), inner_end, inner_end,
+					out_key_selector, inner_key_selector, selector));
+				return result.where([](auto&& pair_element)
+				{
+					return pair_element.second.size() != 0;
+				}).select([&reuslt_selector](auto&& element)
+				{
+					return reuslt_selector(element.first, element.second);
+				});
+		}
+
+		template<typename inner_iterator_type, typename outer_key_selector_type,
+			typename inner_key_selector_type, typename result_selector_type>
+			decltype( auto ) inner_join(
 			const inner_iterator_type& inner_begin,
 			const inner_iterator_type& inner_end,
 			const outer_key_selector_type& out_key_selector,
@@ -683,33 +707,10 @@ namespace ztl
 					result_selector_type>;
 
 				return enumerable<inner_join_type>(
-					inner_join_type(begin(),end(),inner_begin,inner_end,
-					out_key_selector,inner_key_selector,reuslt_selector),
-					inner_join_type(end(),end(),inner_end,inner_end,
-					out_key_selector,inner_key_selector,reuslt_selector));
-		}
-		//分组外连接和分组内连接搞定
-		template<typename inner_iterator_type, typename outer_key_selector_type,
-			typename inner_key_selector_type, typename result_selector_type>
-			decltype( auto ) group_join(
-			const inner_iterator_type& inner_begin,
-			const inner_iterator_type& inner_end,
-			const outer_key_selector_type& out_key_selector,
-			const inner_key_selector_type& inner_key_selector,
-			const result_selector_type& reuslt_selector,const group_type empty = group_type::if_default_empty)
-		{
-				using group_join_type = group_jion_iterator<
-					iterator_type,
-					inner_iterator_type,
-					outer_key_selector_type,
-					inner_key_selector_type,
-					result_selector_type>;
-
-				return enumerable<group_join_type>(
-					group_join_type(begin(), end(), inner_begin, inner_end,
-					out_key_selector, inner_key_selector, reuslt_selector, empty),
-					group_join_type(end(), end(), inner_end, inner_end,
-					out_key_selector, inner_key_selector, reuslt_selector, empty));
+					inner_join_type(begin(), end(), inner_begin, inner_end,
+					out_key_selector, inner_key_selector, reuslt_selector),
+					inner_join_type(end(), end(), inner_end, inner_end,
+					out_key_selector, inner_key_selector, reuslt_selector));
 		}
 
 		template<typename inner_iterator_type, typename outer_key_selector_type,
@@ -721,7 +722,7 @@ namespace ztl
 			const inner_key_selector_type& inner_key_selector,
 			const result_selector_type& reuslt_selector)
 		{
-			return	group_join(begin(), end(), inner_begin, inner_end, out_key_selector, inner_key_selector, [](auto&& outer_element,auto&& inner_list)
+			return	outer_group_join(begin(), end(), inner_begin, inner_end, out_key_selector, inner_key_selector, [](auto&& outer_element,auto&& inner_list)
 				{
 					return std::make_pair(outer_element, inner_list);
 				}).select_many([&result_selector](auto&& pair_element)
@@ -806,23 +807,20 @@ namespace ztl
 		}
 		void print_pair()
 		{
-			std::for_each(_begin, _end, [](auto&& a)
+			for(; _begin != _end; ++_begin)
 			{
-				std::cout << "key:" << a.first << std::endl;
-				std::for_each(a.second.begin(), a.second.end(), [](auto&& a)
-				{
-					std::cout << a << " ";
-				});
-				std::cout << std::endl;
-			});
-			std::cout << std::endl;
+				auto t = *_begin;
+
+				std::cout << t.first << " " << t.second<<" " << std::endl;
+			}
 		}
 		void print()
 		{
 			for(; _begin != _end; ++_begin)
 			{
 				auto t = *_begin;
-				std::cout << t.first<<" "<<t.second << " "<<std::endl;
+				
+				std::cout << t<<" "<< " "<<std::endl;
 			}
 			/*std::for_each(_begin, _end, [](auto&& a)
 			{
@@ -831,27 +829,37 @@ namespace ztl
 			std::cout << std::endl;*/
 		}
 
+		//模板的模板参数
 		template<typename container_type>
-		container_type transform()
+		container_type transform() const
 		{
-			container_type<value_type> container;
+			container_type container;
 			for(auto it = begin(); it != end();++it)
 			{
 				container.insert(std::end(container), *it);
 			}
 			return std::move(container);
 		}
+		//decltype( auto ) to_vector()
+		//{
+		//	return transform<std::vector<value_type>>();
+		//}
+		/*std::vector<value_type> to_vector()
+		{
+		return transform<std::vector<value_type>>();
+		}*/
+
 #define TO_CONTAINER_FUNCTION(STL_CONTAINER_NAME) \
-	decltype(auto) to_##STL_CONTAINER_NAME()\
+		std::STL_CONTAINER_NAME<value_type> to_##STL_CONTAINER_NAME()\
 		{\
-		return transform<std::STL_CONTAINER_NAME>();\
+		return transform<std::STL_CONTAINER_NAME<value_type>>();\
 		}
 
 		TO_CONTAINER_FUNCTION(vector);
-		TO_CONTAINER_FUNCTION(unordered_map);
+		/*TO_CONTAINER_FUNCTION(unordered_map);
 		TO_CONTAINER_FUNCTION(unordered_multimap);
 		TO_CONTAINER_FUNCTION(unordered_set);
-		TO_CONTAINER_FUNCTION(unordered_multiset);
+		TO_CONTAINER_FUNCTION(unordered_multiset);*/
 
 #undef TO_CONTAINER_FUNCTION
 	};
@@ -866,6 +874,16 @@ namespace ztl
 	{
 		return from(std::begin(container), std::end(container));
 	}
+	template<typename container_type>
+	decltype( auto ) from(const std::shared_ptr<container_type>& container)
+	{
+		return from(container->begin(), container->end());
+	}
+	template<typename element_type>
+	auto from(const std::initializer_list<element_type>& e)
+	{
+		return from(e.begin(), e.end());
+	}
 	template<typename iterator_type, typename container_type>
 	decltype( auto ) from_shared(const iterator_type& _begin, const iterator_type& _end, const container_type& conatiner)
 	{
@@ -875,5 +893,10 @@ namespace ztl
 			storage_iterator<iterator_type, container_type>(_begin, conatiner),
 			storage_iterator<iterator_type, container_type>(_end, conatiner)
 			);
+	}
+	template<typename container_type>
+	decltype( auto ) from_shared(const std::shared_ptr<container_type>& container)
+	{
+		return from_shared(container->begin(), container->end(), container);
 	}
 }

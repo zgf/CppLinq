@@ -7,33 +7,72 @@ using std::vector;
 using std::cout;
 using std::endl;
 using std::string;
-class PetOwner
+
+void test_from()
 {
-public:
-	string Name;
-	vector<string> Pets;
-public:
-	PetOwner(string _Name, vector<string> _Pets) :Name(_Name), Pets(_Pets)
+	using ztl::from;
+	//////////////////////////////////////////////////////////////////
+	// from
+	//////////////////////////////////////////////////////////////////
 	{
-
+		vector<int> xs = {1, 2, 3, 4, 5};
+		int sum = 0;
+		for(auto x : from(xs.begin(), xs.end()))
+		{
+			sum += x;
+		}
+		assert(sum == 15);
 	}
-};
-
-class Person
-{
-public:
-	string Name;
-};
-
-class Pet
-{
-public:
-	string Name;
-	Person Owner;
-};
+	{
+		vector<int> xs = {1, 2, 3, 4, 5};
+		int sum = 0;
+		for(auto x : from(xs))
+		{
+			sum += x;
+		}
+		assert(sum == 15);
+	}
+	{
+		int sum = 0;
+		for(auto x :ztl::from({1, 2, 3, 4, 5}))
+		{
+			sum += x;
+		}
+		assert(sum == 15);
+	}
+	{
+		int sum = 0;
+		for(auto x : ztl::from(ztl::from({1, 2, 3, 4, 5})))
+		{
+			sum += x;
+		}
+		assert(sum == 15);
+	}
+	{
+		auto xs = std::make_shared<vector<int>>(vector<int>({1, 2, 3, 4, 5}));
+		int sum = 0;
+		for(auto x : from(from(ztl::from_shared(xs))))
+		{
+			sum += x;
+		}
+		assert(sum == 15);
+	}
+}
 
 void test_select()
 {
+	class PetOwner
+	{
+	public:
+		string Name;
+		vector<string> Pets;
+	public:
+		PetOwner(string _Name, vector<string> _Pets) :Name(_Name), Pets(_Pets)
+		{
+
+		}
+	};
+
 	vector<PetOwner> petOwners =
 	{PetOwner{"Higa",
 	vector<string>{"Scruffy", "Sam"}},
@@ -50,17 +89,57 @@ void test_select()
 }
 void test_order_by()
 {
-	int xs[] = {7, 1, 12, 2, 8, 3, 11, 4, 9, 5, 13, 6, 10};
-	int ys[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
-	int zs[] = {10, 1, 11, 2, 12, 3, 13, 4, 5, 6, 7, 8, 9};
+	//int xs[] = {7, 1, 12, 2, 8, 3, 11, 4, 9, 5, 13, 6, 10};
+	//int ys[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+	//int zs[] = {10, 1, 11, 2, 12, 3, 13, 4, 5, 6, 7, 8, 9};
 
-	assert(ztl::from(xs).order_by([](int x)
+	//assert(ztl::from(xs).order_by([](int x)
+	//{
+	//	return x;
+	//}).equal(ys));
+	class Pet
 	{
-		return x;
-	}).equal(ys));
+	public:
+		string Name;
+		int Age;
+		Pet(string name, int age)
+		{
+			Name = name;
+			Age = age;
+		}
+		bool operator ==( const Pet& p )const
+		{
+			return Name == p.Name && Age == p.Age;
+		}
+		bool operator!=( const Pet& p )const
+		{
+			return !(*this==p);
+		}
+	};
+	vector<Pet> pets = {{"Barley", 8},
+		{"Boots", 4},
+		{"Whiskers",  1}};
+	vector<Pet> test = {{"Whiskers", 1}, {"Boots", 4}, {"Barley", 8}};
+	assert(ztl::from(pets).order_by([](auto&& pet)
+	{
+		return pet.Age;
+	}).equal(test));
+
 }
 void test_select_many()
 {
+	class PetOwner
+	{
+	public:
+		string Name;
+		vector<string> Pets;
+	public:
+		PetOwner(string _Name, vector<string> _Pets) :Name(_Name), Pets(_Pets)
+		{
+
+		}
+	};
+
 	vector<PetOwner> petOwners =
 	{
 		PetOwner{"Higa",
@@ -83,6 +162,18 @@ void test_select_many()
 }
 void test_inner_jion()
 {
+	class Person
+	{
+	public:
+		string Name;
+	};
+
+	class Pet
+	{
+	public:
+		string Name;
+		Person Owner;
+	};
 	Person magnus =  Person{ "Hedlund, Magnus"};
 	Person terry =  Person{ "Adams, Terry"};
 	Person charlotte =  Person{ "Weiss, Charlotte"};
@@ -112,40 +203,101 @@ void test_inner_jion()
 		person_functor,
 		pet_functor,
 		result_functor
-		).print();
+		).print_pair();
 
+}
+void test_where()
+{
+	vector<string> fruits =
+		{"apple", "passionfruit", "banana", "mango",
+		"orange", "blueberry", "grape", "strawberry"};
+
+	assert(ztl::from(fruits).where([](auto&&fruit)
+	{
+		return fruit.size() < 6;
+	}).equal({"apple",
+		"mango",
+		"grape"}));
+}
+void test_outer_group_jion()
+{
+	
+	class Person
+	{
+	public:
+		string Name;
+		bool operator==( const Person& right )
+		{
+			return Name == right.Name;
+		}
+		bool operator!=( const Person& right )
+		{
+			return !( *this == right );
+		}
+	};
+
+	class Pet
+	{
+	public:
+		string Name;
+		Person Owner;
+	};
+	Person magnus = Person{"Hedlund, Magnus"};
+	Person terry = Person{"Adams, Terry"};
+	Person charlotte = Person{"Weiss, Charlotte"};
+
+	Pet barley = Pet{"Barley", terry};
+	Pet boots = Pet{"Boots", terry};
+	Pet whiskers = Pet{"Whiskers", charlotte};
+	Pet daisy = Pet{"Daisy", magnus};
+
+	vector<Person> people = {magnus, terry, charlotte};
+	vector<Pet> pets = {barley, boots, whiskers, daisy};
+	//Pet a;
+	//const Pet& b =a;
+	auto uu = [](auto&&pet)
+	{
+
+		return pet.Name;
+	};
+	auto query = ztl::from(people).outer_group_join(pets.begin(), pets.end(),
+		[](auto&& person)
+	{
+		return person;
+	},
+		[](auto&& pet)
+	{
+		return pet.Owner;
+	},
+		[&uu](auto&& person, auto&& petCollection)
+	{
+		return std::make_pair(person.Name, ztl::from(petCollection).select(uu).to_vector());
+	});
+	
+	for(auto obj = query.begin(); obj != query.end(); ++obj)
+	{
+		auto result = *obj;
+
+		// Output the owner's name.
+		cout << result.first << ":" << endl;
+		// Output each of the owner's pet's names.
+		for(auto it = result.second.begin();
+			it != result.second.end();
+			++it)
+		{
+			cout << *it<<endl;
+		}
+		
+	}
 }
 int main()
 {
+	test_from();
+	test_where();
 	test_select();
-	test_order_by();
 	test_select_many();
+	test_order_by();
 	test_inner_jion();
-	/*ztl::from(petOwners).select_many([](auto&& a)
-	{
-		return a.Pets;
-	}, [](auto&& a)
-	{
-		return a;
-	}).print();*/
-
-	vector<int> a = { 1, 2, 3, 4, 5 };
-	vector<int> b = {10,6,2 };
-	
-	//ztl::from(a).
-	//remove([](auto&& a){return a % 2 == 0;}).
-	//select([](auto&& a)
-	//{
-	//	return a * 2;
-	//}).group_by([]
-	//	(const int& a)
-	//{
-	//	return a > 4;
-	//}).print_pair();/*order_by([](auto&& a)
-	//{
-	//	return a;
-	//},ztl::order::descending).*/
-	//;
-
+	test_outer_group_jion();
 	return 0;
 }
