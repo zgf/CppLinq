@@ -320,13 +320,7 @@ namespace ztl
 			return !( operator==( right ) );
 		}
 	};
-
-	enum class group_type:bool
-	{
-		if_default_empty,
-		none,
-	};
-	//[outer] group_jion_iter
+	//group_jion_iter
 	template<typename outer_iterator_type, typename inner_iterator_type, typename outer_key_selector_type,
 		typename inner_key_selector_type, typename result_selector_type>
 	class group_jion_iterator
