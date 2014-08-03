@@ -752,21 +752,30 @@ namespace ztl
 		return transform<std::vector<value_type>>();
 		}*/
 
-#define TO_CONTAINER_FUNCTION(STL_CONTAINER_NAME) \
-		std::STL_CONTAINER_NAME<value_type> to_##STL_CONTAINER_NAME()\
+#define TO_STL_SEQUENCE_CONTAINER_FUNCTION(STL_SEQUENCE_CONTAINER_NAME) \
+	auto to_##STL_SEQUENCE_CONTAINER_NAME()->std::STL_SEQUENCE_CONTAINER_NAME<value_type>\
 		{\
-		return transform<std::STL_CONTAINER_NAME<value_type>>();\
+		return transform<std::STL_SEQUENCE_CONTAINER_NAME<value_type>>();\
 		}
 
-		TO_CONTAINER_FUNCTION(vector);
-		/*TO_CONTAINER_FUNCTION(unordered_map);
-		TO_CONTAINER_FUNCTION(unordered_multimap);
-		TO_CONTAINER_FUNCTION(unordered_set);
-		TO_CONTAINER_FUNCTION(unordered_multiset);*/
+		TO_STL_SEQUENCE_CONTAINER_FUNCTION(vector);
+		
+#undef TO_STL_SEQUENCE_CONTAINER_FUNCTION
 
-#undef TO_CONTAINER_FUNCTION
+#define TO_STL_PAIR_CONTAINER_FUNCTION(STL_PAIR_CONTAINER_NAME) \
+	template<typename key_type>\
+	auto to_##STL_PAIR_CONTAINER_NAME()->\
+	std::STL_PAIR_CONTAINER_NAME<key_type,RETURN_VALUE_TYPE(value_type)>\
+		{\
+		return transform<std::STL_PAIR_CONTAINER_NAME<key_type,RETURN_VALUE_TYPE(value_type)>>();\
+		}
+		TO_STL_PAIR_CONTAINER_FUNCTION(unordered_map);
+		TO_STL_PAIR_CONTAINER_FUNCTION(unordered_multimap);
+		TO_STL_PAIR_CONTAINER_FUNCTION(unordered_set);
+		TO_STL_PAIR_CONTAINER_FUNCTION(unordered_multiset);
+#undef TO_STL_PAIR_CONTAINER_FUNCTION
 	};
-
+	
 	template<typename iterator_type>
 	decltype( auto ) from(const iterator_type& _begin, const iterator_type& _end)
 	{
