@@ -116,10 +116,10 @@ void test_order_by()
 			return !(*this==p);
 		}
 	};
-	vector<Pet> pets = {{"Barley", 8},
-		{"Boots", 4},
-		{"Whiskers",  1}};
-	vector<Pet> test = {{"Whiskers", 1}, {"Boots", 4}, {"Barley", 8}};
+	vector<Pet> pets = {{"李狗1", 8},
+		{"李狗2", 4},
+		{"王狗",  1}};
+	vector<Pet> test = {{"王狗", 1}, {"李狗2", 4}, {"李狗1", 8}};
 	assert(ztl::from(pets).order_by([](auto&& pet)
 	{
 		return pet.Age;
@@ -174,14 +174,14 @@ void test_inner_jion()
 		string Name;
 		Person Owner;
 	};
-	Person magnus =  Person{ "Hedlund, Magnus"};
-	Person terry =  Person{ "Adams, Terry"};
-	Person charlotte =  Person{ "Weiss, Charlotte"};
+	Person magnus =  Person{ "小明"};
+	Person terry =  Person{ "小李"};
+	Person charlotte =  Person{ "小王"};
 
-	Pet barley =  Pet{ "Barley",  terry};
-	Pet boots =  Pet{ "Boots",  terry};
-	Pet whiskers =  Pet{ "Whiskers",  charlotte};
-	Pet daisy =  Pet{ "Daisy",  magnus};
+	Pet barley =  Pet{ "李狗1",  terry};
+	Pet boots =  Pet{ "李狗2",  terry};
+	Pet whiskers =  Pet{ "王狗",  charlotte};
+	Pet daisy =  Pet{ "明狗",  magnus};
 
 	vector<Person> people = {magnus, terry, charlotte};
 	vector<Pet> pets =  {barley, boots, whiskers, daisy};
@@ -210,11 +210,11 @@ void test_where()
 {
 	vector<string> fruits =
 		{"apple", "passionfruit", "banana", "mango",
-		"orange", "blueberry", "grape", "strawberry"};
+		"orange", "grape", "strawberry"};
 
 	assert(ztl::from(fruits).where([](auto&&fruit)
 	{
-		return fruit.size() < 6;
+		return fruit.size() == 5;
 	}).equal({"apple",
 		"mango",
 		"grape"}));
@@ -242,16 +242,17 @@ void test_outer_group_jion()
 		string Name;
 		Person Owner;
 	};
-	Person magnus = Person{"Hedlund, Magnus"};
-	Person terry = Person{"Adams, Terry"};
-	Person charlotte = Person{"Weiss, Charlotte"};
+	Person magnus = Person{"小明"};
+	Person terry = Person{"小李"};
+	Person charlotte = Person{"小王"};
+	Person tim = Person{"小菜"};
 
-	Pet barley = Pet{"Barley", terry};
-	Pet boots = Pet{"Boots", terry};
-	Pet whiskers = Pet{"Whiskers", charlotte};
-	Pet daisy = Pet{"Daisy", magnus};
+	Pet barley = Pet{"李狗1", terry};
+	Pet boots = Pet{"李狗2", terry};
+	Pet whiskers = Pet{"王狗", charlotte};
+	Pet daisy = Pet{"明狗", magnus};
 
-	vector<Person> people = {magnus, terry, charlotte};
+	vector<Person> people = {magnus, terry, charlotte, tim};
 	vector<Pet> pets = {barley, boots, whiskers, daisy};
 	//Pet a;
 	//const Pet& b =a;
@@ -271,23 +272,97 @@ void test_outer_group_jion()
 	},
 		[&uu](auto&& person, auto&& petCollection)
 	{
-		return std::make_pair(person.Name, ztl::from(petCollection).select(uu).to_vector());
+		return std::make_pair(person.Name, petCollection);// ztl::from(petCollection).select(uu).to_vector());
 	});
 	
 	for(auto obj = query.begin(); obj != query.end(); ++obj)
 	{
 		auto result = *obj;
 
-		// Output the owner's name.
+		//// Output the owner's name.
 		cout << result.first << ":" << endl;
-		// Output each of the owner's pet's names.
+		////// Output each of the owner's pet's names.
+		////
 		for(auto it = result.second.begin();
 			it != result.second.end();
 			++it)
 		{
-			cout << *it<<endl;
+			cout << (*it).Name<<endl;
 		}
 		
+	}
+}
+void test_inner_group_jion()
+{
+
+	class Person
+	{
+	public:
+		string Name;
+		bool operator==( const Person& right )
+		{
+			return Name == right.Name;
+		}
+		bool operator!=( const Person& right )
+		{
+			return !( *this == right );
+		}
+	};
+
+	class Pet
+	{
+	public:
+		string Name;
+		Person Owner;
+	};
+	Person magnus = Person{"小明"};
+	Person terry = Person{"小李"};
+	Person charlotte = Person{"小王"};
+	Person tim = Person{"小菜"};
+
+	Pet barley = Pet{"李狗1", terry};
+	Pet boots = Pet{"李狗2", terry};
+	Pet whiskers = Pet{"王狗", charlotte};
+	Pet daisy = Pet{"明狗", magnus};
+
+	vector<Person> people = {magnus, terry, charlotte, tim};
+	vector<Pet> pets = {barley, boots, whiskers, daisy};
+	//Pet a;
+	//const Pet& b =a;
+	auto uu = [](auto&&pet)
+	{
+
+		return pet.Name;
+	};
+	auto query = ztl::from(people).inner_group_join(pets.begin(), pets.end(),
+		[](auto&& person)
+	{
+		return person;
+	},
+		[](auto&& pet)
+	{
+		return pet.Owner;
+	},
+		[&uu](auto&& person, auto&& petCollection)
+	{
+		return std::make_pair(person, petCollection);// ztl::from(petCollection).select(uu).to_vector());
+	});
+
+	for(auto obj = query.begin(); obj != query.end();)
+	{
+		auto result = *obj;
+
+		//// Output the owner's name.
+		cout << result.first.Name << ":" << endl;
+		////// Output each of the owner's pet's names.
+		////
+		for(auto it = result.second.begin();
+			it != result.second.end();
+			++it)
+		{
+			cout << ( *it ).Name << endl;
+		}
+		++obj;
 	}
 }
 int main()
@@ -299,5 +374,7 @@ int main()
 	test_order_by();
 	test_inner_jion();
 	test_outer_group_jion();
+	test_inner_group_jion();
+
 	return 0;
 }

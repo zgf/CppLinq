@@ -113,7 +113,6 @@ namespace ztl
 		
 		self_type& operator++( )
 		{
-			++iterator;
 			move_iterator(true);
 			return *this;
 		}
@@ -127,13 +126,13 @@ namespace ztl
 		}
 
 	public:
-		bool operator==( const self_type& right )
+		bool operator==( const self_type& right ) const
 		{
 			return iterator == right.iterator;
 		}
-		bool operator!=( const self_type& right )
+		bool operator!=( const self_type& right ) const
 		{
-			return !( operator==( right ) );
+			return !( *this== right  );
 		}
 
 	};
@@ -242,11 +241,11 @@ namespace ztl
 		}
 
 	public:
-		bool operator==( const self_type& right )
+		bool operator==( const self_type& right ) const
 		{
 			return iterator == right.iterator;
 		}
-		bool operator!=( const self_type& right )
+		bool operator!=( const self_type& right ) const
 		{
 			return !( operator==( right ) );
 		}
@@ -312,12 +311,12 @@ namespace ztl
 		}
 
 	public:
-		bool operator==( const self_type& right )
+		bool operator==( const self_type& right )const
 		{
 			return first1 == right.first1
 				&& last1 == right.last1;
 		}
-		bool operator!=( const self_type& right )
+		bool operator!=( const self_type& right )const
 		{
 			return !( operator==( right ) );
 		}
@@ -391,11 +390,11 @@ namespace ztl
 			++iterator;
 			return temp;
 		}
-		bool operator==( const self_type& right )
+		bool operator==( const self_type& right )const
 		{
 			return first1 == right.first1&& last1 == right.last1;
 		}
-		bool operator!=( const self_type& right )
+		bool operator!=( const self_type& right )const
 		{
 			return !( operator==( right ) );
 		}
@@ -435,6 +434,8 @@ namespace ztl
 					value_list.push_back(*next2);
 				}
 			}
+			cout << "看看进入了几次";
+			cout << (*first1).Name << endl;
 			return result_selector(*first1, value_list);
 		}
 	public:
@@ -470,11 +471,11 @@ namespace ztl
 			++(*this);
 			return temp;
 		}
-		bool operator==( const self_type& right )
+		bool operator==( const self_type& right )const
 		{
 			return first1 == right.first1&& last1 == right.last1;
 		}
-		bool operator!=( const self_type& right )
+		bool operator!=( const self_type& right )const
 		{
 			return !( operator==( right ) );
 		}
@@ -520,11 +521,11 @@ namespace ztl
 		}
 
 	public:
-		bool operator==( const self_type& right )
+		bool operator==( const self_type& right )const
 		{
 			return iterator == right.iterator;
 		}
-		bool operator!=( const self_type& right )
+		bool operator!=( const self_type& right )const
 		{
 			return !( operator==( right ) );
 		}
@@ -670,7 +671,7 @@ namespace ztl
 				{
 					return std::make_pair(first, second);
 				};
-				using inner_group_join_type = group_jion_iterator<
+				/*using inner_group_join_type = group_jion_iterator<
 					iterator_type,
 					inner_iterator_type,
 					outer_key_selector_type,
@@ -681,13 +682,15 @@ namespace ztl
 					out_key_selector, inner_key_selector, selector),
 					inner_group_join_type(end(), end(), inner_end, inner_end,
 					out_key_selector, inner_key_selector, selector));
-				return result.where([](auto&& pair_element)
+				return result*/
+				return outer_group_join(inner_begin,inner_end,out_key_selector,inner_key_selector,selector)
+					.where([](auto&& pair_element)
 				{
 					return pair_element.second.size() != 0;
-				}).select([&reuslt_selector](auto&& element)
+				})/*.select([&reuslt_selector](auto&& element)
 				{
 					return reuslt_selector(element.first, element.second);
-				});
+				})*/;
 		}
 
 		template<typename inner_iterator_type, typename outer_key_selector_type,
