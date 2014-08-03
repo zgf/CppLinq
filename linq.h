@@ -732,48 +732,75 @@ namespace ztl
 			std::cout << std::endl;*/
 		}
 
-		//模板的模板参数
-		template<typename container_type>
-		container_type transform() const
+		
+		//decltype( auto ) to_vector()
+		//{
+		//	return transform<std::vector<value_type>>();
+		//}
+		std::vector<value_type> to_vector()const
 		{
-			container_type container;
-			for(auto it = begin(); it != end();++it)
+			std::vector<value_type> container;
+			for(auto it = begin(); it != end(); ++it)
 			{
 				container.insert(std::end(container), *it);
 			}
 			return std::move(container);
 		}
-		//decltype( auto ) to_vector()
-		//{
-		//	return transform<std::vector<value_type>>();
-		//}
-		/*std::vector<value_type> to_vector()
+
+		/*template<typename selector_type>
+			auto to_vector(const selector_type& selector)
+			->std::vector<decltype(selector(value_type()))> const
 		{
-		return transform<std::vector<value_type>>();
+				std::vector<decltype( selector(value_type()) )> container;
+				for(auto it = begin(); it != end(); ++it)
+				{
+					container.insert(std::end(container), selector(*it));
+				}
+				return std::move(container);
 		}*/
 
 #define TO_STL_SEQUENCE_CONTAINER_FUNCTION(STL_SEQUENCE_CONTAINER_NAME) \
-	auto to_##STL_SEQUENCE_CONTAINER_NAME()->std::STL_SEQUENCE_CONTAINER_NAME<value_type>\
+	template<typename selector_type>\
+		auto to_##STL_SEQUENCE_CONTAINER_NAME(const selector_type& selector)\
+			->std::STL_SEQUENCE_CONTAINER_NAME<decltype( selector(value_type()) )> const\
 		{\
-		return transform<std::STL_SEQUENCE_CONTAINER_NAME<value_type>>();\
+			std::STL_SEQUENCE_CONTAINER_NAME<decltype( selector(value_type()) )> container;\
+			for(auto it = begin(); it != end(); ++it)\
+			{\
+				container.insert(std::end(container), selector(*it));\
+			}\
+			return std::move(container);\
+		}\
+		auto to_##STL_SEQUENCE_CONTAINER_NAME()\
+		->std::STL_SEQUENCE_CONTAINER_NAME<value_type> const\
+		{\
+		std::STL_SEQUENCE_CONTAINER_NAME<value_type> container;\
+		for(auto it = begin(); it != end(); ++it)\
+		{\
+		container.insert(std::end(container), *it);\
+		}\
+		return std::move(container);\
 		}
 
 		TO_STL_SEQUENCE_CONTAINER_FUNCTION(vector);
-		
+		TO_STL_SEQUENCE_CONTAINER_FUNCTION(unordered_set);
+		TO_STL_SEQUENCE_CONTAINER_FUNCTION(unordered_multiset);
 #undef TO_STL_SEQUENCE_CONTAINER_FUNCTION
 
-#define TO_STL_PAIR_CONTAINER_FUNCTION(STL_PAIR_CONTAINER_NAME) \
-	template<typename key_type>\
-	auto to_##STL_PAIR_CONTAINER_NAME()->\
-	std::STL_PAIR_CONTAINER_NAME<key_type,RETURN_VALUE_TYPE(value_type)>\
-		{\
-		return transform<std::STL_PAIR_CONTAINER_NAME<key_type,RETURN_VALUE_TYPE(value_type)>>();\
+		template<typename key_selector_type,typename value_selector_type>
+		auto to_unordered_map(const key_selector_type& key_selector,const value_selector_type& value_selector)
+			->std::unordered_map<decltype( key_selector(value_type()) ), decltype( value_selector(value_type()) )>const
+		{
+			using key_type = decltype(key_selector(value_type()));
+			using val_type = decltype( value_selector(value_type()) );
+			using container_type = std::unordered_map<key_type, val_type>;
+			container_type container;
+			for(auto it = begin(); it != end(); ++it)
+			{
+				container.insert(std::make_pair(key_selector(*it), value_selector(*it)));
+			}
+			return std::move(container);
 		}
-		TO_STL_PAIR_CONTAINER_FUNCTION(unordered_map);
-		TO_STL_PAIR_CONTAINER_FUNCTION(unordered_multimap);
-		TO_STL_PAIR_CONTAINER_FUNCTION(unordered_set);
-		TO_STL_PAIR_CONTAINER_FUNCTION(unordered_multiset);
-#undef TO_STL_PAIR_CONTAINER_FUNCTION
 	};
 	
 	template<typename iterator_type>

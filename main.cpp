@@ -198,7 +198,7 @@ void test_inner_jion()
 		[](auto&&  person, auto&& pet)
 	{
 		return std::make_pair(person.Name, pet.Name);
-	}).print_pair();
+	}).to_vector();
 
 }
 void test_where()
