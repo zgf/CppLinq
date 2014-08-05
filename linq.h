@@ -5,6 +5,10 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <numeric>
+#include <exception>
+#include <string>
+//#include <tuple>
 #include "check_type.hpp"
 namespace ztl
 {
@@ -44,6 +48,40 @@ namespace ztl
 
 #define RETURN_VALUE_TYPE(RETURN_VALUE)\
 	typename std::remove_reference<decltype(RETURN_VALUE)>::type
+
+#define LEFT_ARGS(...) __VA_ARGS__
+
+#define RIGHT_ARGS(...) __VA_ARGS__
+
+#define EQUAL_OPERATOR(LEFT,RIGHT)\
+	bool operator==(const self_type& right) const\
+	{\
+	return 	std::tie(LEFT) == std::tie(RIGHT);\
+	}\
+	bool operator!=(const self_type& right) const\
+	{\
+	return !(*this == right);\
+	}
+#define PRODUCT_EQUAL_OPERATOR(A,B) \
+	EQUAL_OPERATOR(LEFT_ARGS##A,LEFT_ARGS##B);
+
+	
+	class linq_exception
+	{
+	private:
+		std::string message;
+	public:
+		linq_exception() = delete;
+		linq_exception(const char* _message) :message(_message)
+		{
+
+		}
+		std::string what()const
+		{
+			return message;
+		}
+	};
+
 
 	template<typename UnaryPredicateType>
 	struct unary_negate
@@ -161,6 +199,104 @@ namespace ztl
 		}
 	};
 
+
+	//skip
+	template<typename iterator_type>
+	class skip_iterator
+	{
+	private:
+		iterator_type iterator;
+		iterator_type end;
+	public:
+		auto operator*()->RETURN_VALUE_TYPE(*iterator) const
+		{
+			return *iterator;
+		}
+	public:
+		COMMON_ITERATOR_DECLARE(skip_iterator, iterator_type);
+	public:
+		skip_iterator() = delete;
+		skip_iterator(const iterator_type& _iterator, const iterator_type& _end, const size_t& count) : end(_end)
+		{
+			if(iterator != end)
+			{
+				iterator = std::next(_iterator, count);
+			}
+		}
+	public:
+
+		self_type& operator++()
+		{
+			++iterator;
+			return *this;
+		}
+
+		self_type operator++(int)
+		{
+			self_type temp = *this;
+			++*this;
+			return temp;
+		}
+
+	public:
+		bool operator==(const self_type& right) const
+		{
+			return iterator == right.iterator;
+		}
+		bool operator!=(const self_type& right) const
+		{
+			return !(*this == right);
+		}
+	};
+
+	//take
+	template<typename iterator_type>
+	class take_iterator
+	{
+	private:
+		iterator_type iterator;
+		iterator_type end;
+		size_t count;
+	public:
+		auto operator*()->RETURN_VALUE_TYPE(*iterator) const
+		{
+			return *iterator;
+		}
+	public:
+		COMMON_ITERATOR_DECLARE(take_iterator, iterator_type);
+	public:
+		take_iterator() = delete;
+		take_iterator(const iterator_type& _iterator, const size_t& _count) :iterator(_iterator), count(_count)
+		{
+			end = std::next(iterator, count);
+		}
+	public:
+
+		self_type& operator++()
+		{
+			++iterator;
+			return *this;
+		}
+
+		self_type operator++(int)
+		{
+			self_type temp = *this;
+			++*this;
+			return temp;
+		}
+
+	public:
+		bool operator==(const self_type& right) const
+		{
+			return iterator == right.iterator;
+		}
+		bool operator!=(const self_type& right) const
+		{
+			return !(*this == right);
+		}
+	};
+
+
 	//select
 
 	template<typename iterator_type, typename selector_type>
@@ -193,7 +329,7 @@ namespace ztl
 		self_type operator++(int)
 		{
 			self_type temp = *this;
-			++iterator;
+			++*this;
 			return temp;
 		}
 
@@ -223,7 +359,7 @@ namespace ztl
 
 		auto operator*()
 			->RETURN_VALUE_TYPE(result_selector(*iterator,
-			*std::next(collection_selector(*iterator).begin(), subindex))) const
+			*(collection_selector(*iterator).begin()))) const
 		{
 				return result_selector(*iterator, *std::next(collection_selector(*iterator).begin(), subindex));
 		}
@@ -259,7 +395,7 @@ namespace ztl
 		self_type operator++(int)
 		{
 			self_type temp = *this;
-			++iterator;
+			++*this;
 			return temp;
 		}
 
@@ -328,7 +464,7 @@ namespace ztl
 		self_type operator++(int)
 		{
 			self_type temp = *this;
-			++iterator;
+			++*this;
 			return temp;
 		}
 
@@ -450,7 +586,7 @@ namespace ztl
 		self_type operator++(int)
 		{
 			self_type temp = *this;
-			++iterator;
+			++*this;
 			return temp;
 		}
 
@@ -458,6 +594,71 @@ namespace ztl
 		bool operator==(const self_type& right)const
 		{
 			return iterator == right.iterator;
+		}
+		bool operator!=(const self_type& right)const
+		{
+			return !(operator==(right));
+		}
+	};
+
+	template<typename iterator_type1,typename iterator_type2>
+	class concat_iterator
+	{
+	private:
+		iterator_type1 first1;
+		iterator_type1 last1;
+		iterator_type2 first2;
+		iterator_type2 last2;
+	public:
+		concat_iterator(const iterator_type1& _first1, const iterator_type& _last1, const iterator_type2& _first2, const iterator_type2& _last2)
+			:first1(_first1), last1(_last1), first2(_first2), last2(_last2)
+		{
+
+		}
+	public:
+		auto operator*()->RETURN_VALUE_TYPE(*first1) const
+		{
+			if (first1 == last1)
+			{
+				return *first2;
+			} 
+			else
+			{
+				return *first1;
+			}
+		}
+	public:
+		COMMON_ITERATOR_DECLARE(concat_iterator, iterator_type1);
+	public:
+
+		self_type& operator++()
+		{
+			if(first1 != last1)
+			{
+				++first1;
+			}
+			else if(first2!=last2)
+			{
+				++first2;
+			}
+			return *this;
+		}
+
+		self_type operator++(int)
+		{
+			self_type temp = *this;
+			++*this;
+			return temp;
+		}
+
+	public:
+		bool operator==(const self_type& right)const
+		{
+			PRODUCT_EQUAL_OPERATOR((
+				first1, first2, 
+				last1, last2), 
+				(right.first1, right.first2, 
+				right.last1, right.last2));
 		}
 		bool operator!=(const self_type& right)const
 		{
@@ -767,267 +968,340 @@ namespace ztl
 		对序列应用累加器函数。 将指定的种子值用作累加器的初始值，并使用指定的函数选择结果值。
 
 		*/
+		template<typename accumulator_type = std::plus<void>, typename init_type = int>
+		decltype(auto) aggregate(const iterator_type& fist,const iterator_type& last,const accumulator_type& accumulator = std::plus<void>(), const init_type& init = init_type())
+		{
+			return std::accumulate(first, last, init, accumulator);
+		}
 
-		//template< typename accumulator_type, typename init_type>
-		//decltype(auto) aggregate(const accumulator_type& accumulator, const init_type& init = init_type())
-		//{
-		//	return self_type();
-		//}
-		//template< typename accumulator_type, typename init_type, typename result_selector_type>
-		//decltype(auto) aggregate(const accumulator_type& accumulator, const result_selector_type& result_selector ,const init_type& init = init_type())
-		//{
-		//	return aggregate(accumulator, init).select(result_selector);
-		//}
-		//ALIAS_FORWARD_FUNCTION(accumulate, aggregate);
 
-		///*
-		//average
-		//*/
-		//decltype(auto) average()
-		//{
-		//	return self_type();
-		//}
-		////Concat<TSource>	连接两个序列。
-
-		//template< typename iterator_type>
-		//decltype(auto) concat(const iterator_type& first, const iterator_type& last)
-		//{
-		//	return self_type();
-		//}
-		///*
-		//	Contains<TSource>(IEnumerable<TSource>, TSource)
-		//	通过使用默认的相等比较器确定序列是否包含指定的元素。
-		//	Contains<TSource>(IEnumerable<TSource>, TSource, IEqualityComparer<TSource>)
-		//	通过使用指定的 IEqualityComparer<T> 确定序列是否包含指定的元素。
-		//*/
-		//template<typename value_type,typename compare_type=std::equal_to<void>>
-		//decltype(auto) contains(const value_type& value, const compare_type& compare = std::equal_to<void>())
-		//{
-		//	return self_type();
-		//}
-
-		///*
-		//Count<TSource>(IEnumerable<TSource>)
-		//返回序列中的元素数量。
-		//Count<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
-		//返回一个数字，表示在指定的序列中满足条件的元素数量。
-		//*/
-		//template<typename selector_type=ztl::always_true>
-		//decltype(auto) count(const selector_type& selector)
-		//{
-		//	return;
-		//}
-
-		///*
-		//Distinct<TSource>(IEnumerable<TSource>)
-		//通过使用默认的相等比较器对值进行比较返回序列中的非重复元素。
-		//Distinct<TSource>(IEnumerable<TSource>, IEqualityComparer<TSource>)
-		//通过使用指定的 IEqualityComparer<T> 对值进行比较返回序列中的非重复元素。
-		//*/
-		//template< typename compare_type = std::equal_to<void>>
-		//decltype(auto) distinct(const compare_type& compare = std::equal_to<void>())
-		//{
-		//	return self_type();
-		//}
-
-		///*
-
-		//ElementAt<TSource>	返回序列中指定索引处的元素。
-		//
-		//*/
-		//template<typename index_type>
-		//decltype(auto) element_at(const index_type& index)
-		//{
-		//	return self_type();
-		//}
-
-		///*
-		//Empty<TResult>	返回一个具有指定的类型参数的空 IEnumerable<T>。
-
-		//*/
-		//template<typename result_type>
-		//decltype(auto) empty()
-		//{
-		//	return from(std::vector<result_type>());
-		//}
-		///*
-		//
-
-		//Except<TSource>(IEnumerable<TSource>, IEnumerable<TSource>)
-		//通过使用默认的相等比较器对值进行比较生成两个序列的差集。
-		//Except<TSource>(IEnumerable<TSource>, IEnumerable<TSource>, IEqualityComparer<TSource>)
-		//通过使用指定的 IEqualityComparer<T> 对值进行比较产生两个序列的差集。
-		//*/
-		//template< typename iterator_type,typename compare_type=std::equal_to<void>>
-		//decltype(auto) except(const iterator_type& first, const iterator_type& last, const compare_type& compare=std::equal_to<void>())
-		//{
-		//	return self_type();
-		//}
-		///*
-		//
-
-		//Intersect<TSource>(IEnumerable<TSource>, IEnumerable<TSource>)
-		//通过使用默认的相等比较器对值进行比较生成两个序列的交集。
-		//Intersect<TSource>(IEnumerable<TSource>, IEnumerable<TSource>, IEqualityComparer<TSource>)
-		//通过使用指定的 IEqualityComparer<T> 对值进行比较以生成两个序列的交集。
-		//*/
-		//template< typename iterator_type, typename compare_type = std::equal_to<void>>
-		//decltype(auto) intersect(const iterator_type& first, const iterator_type& last, const compare_type& compare = std::equal_to<void>())
-		//{
-		//	return self_type();
-		//}
-
-		///*
-		//First<TSource>(IEnumerable<TSource>)
-		//返回序列中的第一个元素。
-		//First<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
-		//返回序列中满足指定条件的第一个元素。
-		//last<TSource>(IEnumerable<TSource>)
-		//返回序列中的最后一个元素。
-		//last<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
-		//返回序列中满足指定条件的最后一个元素。
-		//*/
-
-		//template<typename selector_type = ztl::always_true>
-		//decltype(auto) first(const selector_type& selector )
-		//{
-		//	return self_type();
-		//}
-
-		//template<typename selector_type = ztl::always_true>
-		//decltype(auto) last(const selector_type& selector )
-		//{
-		//	return self_type();
-		//}
-
-		///*
-		//LongCount<TSource>(IEnumerable<TSource>)
-		//返回一个 Int64，表示序列中的元素的总数量。
-		//LongCount<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
-		//返回一个 Int64，表示序列中满足条件的元素的数量。
-		//*/
-		//template<typename selector_type = ztl::always_true>
-		//decltype(auto) long_count(const selector_type& selector )
-		//{
-		//	//(ptrddif_t)
-		//	return self_type();
-		//}
-
-		//decltype(auto) min_value()
-		//{
-		//	//(ptrddif_t)
-		//	return self_type();
-		//}
-
-		//decltype(auto) max_value()
-		//{
-		//	//(ptrddif_t)
-		//	return self_type();
-		//}
-		///*
-		//Range	生成指定范围内的整数的序列。
-		//*/
-		//template<typename difference_type=int, typename value_type=int>
-		//decltype(auto) range_dipatch(const value_type& end, const value_type& start = value_type(), const difference_type& diff = 1)
-		//{
-		//}
-		//template< typename value_type >
-		//decltype(auto) range(const value_type& end)
-		//{
-		//	return range_dipatch(0, end);
-		//}
-		//template< typename value_type >
-		//decltype(auto) range(const value_type& start,const value_type& end)
-		//{
-		//	return range_dipatch(end,start);
-		//}
-		//template< typename value_type, typename difference_type = int>
-		//decltype(auto) range(const value_type& start, const value_type& end , const difference_type& diff = 1)
-		//{
-		//	return range_dipatch(start, end,diff);
-		//}
-
-		///*
-		//Reverse
-		//*/
-		//decltype(auto) reverse()
-		//{
-		//	return self_type();
-		//}
-		///*
-		//Skip<TSource>	跳过序列中指定数量的元素，然后返回剩余的元素。
-		//SkipWhile<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
-		//只要满足指定的条件，就跳过序列中的元素，然后返回剩余元素。
-		//*/
-		//decltype(auto) skip(const size_t& count)
-		//{
-		//	return self_type();
-		//}
-		//template< typename selector_type >
-		//decltype(auto) skip_while(const selector_type& selector)
-		//{
-		//	return remove(selector);
-		//}
-		//
-		///*
-		//sum
-		//*/
-		//decltype(auto) sum()
-		//{
-		//	return self_type();
-		//}
-
-		///*
-		//Skip<TSource>	跳过序列中指定数量的元素，然后返回剩余的元素。
-		//SkipWhile<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
-		//只要满足指定的条件，就跳过序列中的元素，然后返回剩余元素。
-		//*/
-		//decltype(auto) take(const size_t& count)
-		//{
-		//	return self_type();
-		//}
-		//template< typename selector_type >
-		//decltype(auto) take_while(const selector_type& selector)
-		//{
-		//	return remove(selector);
-		//}
-
-		///*
-		//
-
-		//ThenBy<TSource, TKey>(IOrderedEnumerable<TSource>, Func<TSource, TKey>)
-		//根据某个键按升序对序列中的元素执行后续排序。
-		//ThenBy<TSource, TKey>(IOrderedEnumerable<TSource>, Func<TSource, TKey>, IComparer<TKey>)
-		//使用指定的比较器按升序对序列中的元素执行后续排序。
-		//ThenByDescending<TSource, TKey>(IOrderedEnumerable<TSource>, Func<TSource, TKey>)
-		//根据某个键按降序对序列中的元素执行后续排序。
-		//ThenByDescending<TSource, TKey>(IOrderedEnumerable<TSource>, Func<TSource, TKey>, IComparer<TKey>)
-		//使用指定的比较器按降序对序列中的元素执行后续排序。
-
-		//*/
-		//decltype(auto) then_by()
-		//{
-		//}
-
-		///*
-
-		//Union<TSource>(IEnumerable<TSource>, IEnumerable<TSource>)
-		//通过使用默认的相等比较器生成两个序列的并集。
-		//Union<TSource>(IEnumerable<TSource>, IEnumerable<TSource>, IEqualityComparer<TSource>)
-		//通过使用指定的 IEqualityComparer<T> 生成两个序列的并集。
-		//*/
-		//template< typename iterator_type, typename compare_type = std::equal_to<void>>
-		//decltype(auto) Union(const iterator_type& first, const iterator_type& last, const compare_type& compare = std::equal_to<void>())
-		//{
-		//	return self_type();
-		//}
+		template< typename accumulator_type=std::plus<void>, typename init_type=int>
+		decltype(auto) aggregate(const accumulator_type& accumulator = std::plus<void>(), const init_type& init = init_type())
+		{
+			return aggregate(_begin, _end, init, accumulator);
+		}
+		template< typename result_selector_type, typename accumulator_type = std::plus<void>, typename init_type = int>
+		decltype(auto) aggregate(const result_selector_type& result_selector, const accumulator_type& accumulator = std::plus<void>(), const init_type& init = init_type())
+		{
+			return select(result_selector).aggregate(accumulator,init);
+		}
+		ALIAS_FORWARD_FUNCTION(accumulate, aggregate);
 
 		/*
-		Single
-		Any
-		All
-		None
+		average
 		*/
+		decltype(auto) average()
+		{
+			auto n = count();
+			return aggregate([&n](auto&& element)
+			{
+				return element / n;
+			});
+		}
+		//Concat<TSource>	连接两个序列。
+
+		template< typename iterator_type2>
+		decltype(auto) concat(const iterator_type2& first, const iterator_type2& last)
+		{
+			using concat_type = concat_iterator<iterator_type, iterator_type2>;
+			return enumerable<concat_type>(concat_type(_begin, _end, first, last), concat_type(_end,_end,last,last));
+		}
+		/*
+			Contains<TSource>(IEnumerable<TSource>, TSource)
+			通过使用默认的相等比较器确定序列是否包含指定的元素。
+			Contains<TSource>(IEnumerable<TSource>, TSource, IEqualityComparer<TSource>)
+			通过使用指定的 IEqualityComparer<T> 确定序列是否包含指定的元素。
+		*/
+		template<typename value_type,typename compare_type=std::equal_to<void>>
+		bool contains(const value_type& value, const compare_type& compare = std::equal_to<void>())
+		{
+			return any([&value,&compare](auto&& elemnt)
+			{
+				return compare(element, value);
+			});
+		}
+
+		/*
+		Count<TSource>(IEnumerable<TSource>)
+		返回序列中的元素数量。
+		Count<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
+		返回一个数字，表示在指定的序列中满足条件的元素数量。
+		*/
+		template<typename selector_type=ztl::always_true<value_type>>
+		decltype(auto) count(const selector_type& selector = ztl::always_true<value_type>())
+		{
+			return std::count_if(_begin,_end,selector);
+		}
+
+		/*
+		Distinct<TSource>(IEnumerable<TSource>)
+		通过使用默认的相等比较器对值进行比较返回序列中的非重复元素。
+		Distinct<TSource>(IEnumerable<TSource>, IEqualityComparer<TSource>)
+		通过使用指定的 IEqualityComparer<T> 对值进行比较返回序列中的非重复元素。
+		*/
+		template< typename compare_type = std::equal_to<void>>
+		decltype(auto) distinct(const compare_type& compare = std::equal_to<void>())
+		{
+			auto temp_set = std::make_shared<unordered_set>();
+			std::for_each(_begin, _end, [&temp_set](auto&& element)
+			{
+				
+				if(temp_set->find(element) == temp_set->end())
+				{
+					temp_set->insert(element);
+				}
+			});
+			return from_shared(temp_set);
+		}
+
+		/*
+
+		ElementAt<TSource>	返回序列中指定索引处的元素。
+		
+		*/
+		decltype(auto) element_at(const size_t& index)
+		{
+			return *std::next(_begin,index);
+		}
+
+		
+		bool empty()const
+		{
+			return _begin == _end;
+		}
+		/*
+		
+
+		Except<TSource>(IEnumerable<TSource>, IEnumerable<TSource>)
+		通过使用默认的相等比较器对值进行比较生成两个序列的差集。
+		Except<TSource>(IEnumerable<TSource>, IEnumerable<TSource>, IEqualityComparer<TSource>)
+		通过使用指定的 IEqualityComparer<T> 对值进行比较产生两个序列的差集。
+		*/
+		template< typename iterator_type,typename compare_type=std::equal_to<void>>
+		decltype(auto) except(const iterator_type& first, const iterator_type& last, const compare_type& compare=std::equal_to<void>())
+		{
+			auto result = make_shared<vector<value_type>>();
+			std::set_difference(first, last, _begin, _end, *result.get(), compare);
+			return from_shared(result);
+		}
+		/*
+		
+
+		Intersect<TSource>(IEnumerable<TSource>, IEnumerable<TSource>)
+		通过使用默认的相等比较器对值进行比较生成两个序列的交集。
+		Intersect<TSource>(IEnumerable<TSource>, IEnumerable<TSource>, IEqualityComparer<TSource>)
+		通过使用指定的 IEqualityComparer<T> 对值进行比较以生成两个序列的交集。
+		*/
+		template< typename iterator_type, typename compare_type = std::equal_to<void>>
+		decltype(auto) intersect(const iterator_type& first, const iterator_type& last, const compare_type& compare = std::equal_to<void>())
+		{
+			auto result = make_shared<vector<value_type>>();
+			std::set_intersection(first,last,_begin,_end,compare);
+			return from_shared(result);
+		}
+
+		/*
+		First<TSource>(IEnumerable<TSource>)
+		返回序列中的第一个元素。
+		First<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
+		返回序列中满足指定条件的第一个元素。
+		last<TSource>(IEnumerable<TSource>)
+		返回序列中的最后一个元素。
+		last<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
+		返回序列中满足指定条件的最后一个元素。
+		*/
+
+		template<typename selector_type = ztl::always_true>
+		decltype(auto) first(const selector_type& selector )
+		{
+			if(empty())
+			{
+				throw linq_exception("error!container is empty!");
+			}
+			return *first;
+		}
+
+		template<typename selector_type = ztl::always_true>
+		decltype(auto) last(const selector_type& selector )
+		{
+			if(empty())
+			{
+				throw linq_exception("error!container is empty!");
+			}
+			auto it = _begin;
+			auto result = *it;
+			while(++it != _end)
+			{
+				result = *it;
+			}
+			return result;
+		}
+
+		decltype(auto) min_value()
+		{
+			if(empty())
+			{
+				throw linq_exception("error!container is empty!");
+			}
+			this->aggregate(std::next(_begin), _end, [](auto&& a, auto&&b)
+			{
+				return a < b ? a : b;
+			}, *_begin);
+		}
+
+		decltype(auto) max_value()
+		{
+			if(empty())
+			{
+				throw linq_exception("error!container is empty!");
+			}
+			this->aggregate(std::next(_begin), _end, [](auto&& a, auto&&b)
+			{
+				return a > b ? a : b;
+			}, *_begin);
+		}
+		/*
+		Range	生成指定范围内的整数的序列。
+		*/
+		template<typename value_type=int>
+		decltype(auto) range(const value_type& start, const value_type& count = value_type(), const value_type& diff = 1)
+		{
+			if (!std::is_integral<value_type>::value)
+			{
+				throw linq_exception("value_type not integral!");
+			}
+			auto result = make_shared<std::vector<value_type>>();
+			auto next = start;
+			for(auto i = 0; i < count; ++i;)
+			{
+				result->push_back(next);
+				next += diff;
+			}
+			return from_shared(result);
+		}
+		
+		
+
+		/*
+		Reverse
+		*/
+		decltype(auto) reverse()
+		{
+			using reverse_type = std::reverse_iterator<iterator_type>;
+			return enumerable<reverse_type>(reverse_type(_begin), reverse_type(_end));
+		}
+		/*
+		Skip<TSource>	跳过序列中指定数量的元素，然后返回剩余的元素。
+		SkipWhile<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
+		只要满足指定的条件，就跳过序列中的元素，然后返回剩余元素。
+		*/
+		decltype(auto) skip(const size_t& count)
+		{
+			using skip_type = skip_iterator<iterator_type>;
+			return enumerable<skip_type>(skip_type(_begin, _end, count), skip_type(_end, _end, count));
+		}
+		template< typename selector_type >
+		decltype(auto) skip_while(const selector_type& selector)
+		{
+			return remove(selector);
+		}
+		
+		/*
+		sum
+		*/
+		decltype(auto) sum()
+		{
+			if(empty())
+			{
+				throw linq_exception("error!container is empty!");
+			}
+			this->aggregate(std::next(_begin), _end, [](auto&& a, auto&&b)
+			{
+				return  a + b;
+			}, *_begin);
+		}
+
+		/*
+		Skip<TSource>	跳过序列中指定数量的元素，然后返回剩余的元素。
+		SkipWhile<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
+		只要满足指定的条件，就跳过序列中的元素，然后返回剩余元素。
+		*/
+		decltype(auto) take(const size_t& count)
+		{
+			using take_type = take_iterator<iterator_type>;
+			return enumerable<take_type>(take_type(_begin, _end, count), take_type(_end, _end, count));
+		}
+		template< typename selector_type >
+		decltype(auto) take_while(const selector_type& selector)
+		{
+			return where(selector);
+		}
+
+		/*
+		
+
+		ThenBy<TSource, TKey>(IOrderedEnumerable<TSource>, Func<TSource, TKey>)
+		根据某个键按升序对序列中的元素执行后续排序。
+		ThenBy<TSource, TKey>(IOrderedEnumerable<TSource>, Func<TSource, TKey>, IComparer<TKey>)
+		使用指定的比较器按升序对序列中的元素执行后续排序。
+		ThenByDescending<TSource, TKey>(IOrderedEnumerable<TSource>, Func<TSource, TKey>)
+		根据某个键按降序对序列中的元素执行后续排序。
+		ThenByDescending<TSource, TKey>(IOrderedEnumerable<TSource>, Func<TSource, TKey>, IComparer<TKey>)
+		使用指定的比较器按降序对序列中的元素执行后续排序。
+
+		*/
+		decltype(auto) first_by()
+		{
+
+		}
+		decltype(auto) then_by()
+		{
+
+		}
+
+		/*
+
+		Union<TSource>(IEnumerable<TSource>, IEnumerable<TSource>)
+		通过使用默认的相等比较器生成两个序列的并集。
+		Union<TSource>(IEnumerable<TSource>, IEnumerable<TSource>, IEqualityComparer<TSource>)
+		通过使用指定的 IEqualityComparer<T> 生成两个序列的并集。
+		*/
+		template< typename iterator_type, typename compare_type = std::equal_to<void>>
+		decltype(auto) Union(const iterator_type& first, const iterator_type& last, const compare_type& compare = std::equal_to<void>())
+		{
+			auto result = make_shared<vector<value_type>>();
+			std::set_union(first,last,_begin,_end,*result.get(),compare);
+			return from_shared(result);
+		}
+
+		template<template selector_type>
+		decltype(auto) any(const selector_type& selector)
+		{
+			return std::any_of(_begin,_end,selector);
+		}
+		template<template selector_type>
+		decltype(auto) all(const selector_type& selector)
+		{
+			return std::all_of(_begin, _end, selector);
+		}
+		template<template selector_type>
+		decltype(auto) none(const selector_type& selector)
+		{
+			return std::none_of(_begin, _end, selector);
+		}
+		decltype(auto) single()
+		{
+			auto next = _begin;
+			if (empty())
+			{
+				throw linq_exception("container is empty!");
+			}
+			else if( ++next == _end)
+			{
+				throw linq_exception("container has element more than one!");
+			}
+			return *_begin;
+		}
 #define TO_STL_SEQUENCE_CONTAINER_FUNCTION(STL_SEQUENCE_CONTAINER_NAME) \
 	template<typename selector_type>\
 	auto to_##STL_SEQUENCE_CONTAINER_NAME(const selector_type& selector)\

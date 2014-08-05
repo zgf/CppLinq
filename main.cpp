@@ -1,8 +1,6 @@
 #include "linq.h"
-#include <vector>
 #include <iostream>
 #include <assert.h>
-#include <string>
 using std::vector;
 using std::cout;
 using std::endl;
@@ -360,6 +358,10 @@ void test_inner_group_jion()
 		++obj;
 	}
 }
+
+
+
+
 int main()
 {
 	test_from();
@@ -370,6 +372,5 @@ int main()
 	test_inner_jion();
 	test_outer_group_jion();
 	test_inner_group_jion();
-
 	return 0;
 }
