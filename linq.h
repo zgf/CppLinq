@@ -49,9 +49,7 @@ namespace ztl
 #define RETURN_VALUE_TYPE(RETURN_VALUE)\
 	typename std::remove_reference<decltype(RETURN_VALUE)>::type
 
-#define LEFT_ARGS(...) __VA_ARGS__
-
-#define RIGHT_ARGS(...) __VA_ARGS__
+#define PROTECT_PARAMETERS(...) __VA_ARGS__
 
 #define EQUAL_OPERATOR(LEFT,RIGHT)\
 	bool operator==(const self_type& right) const\
@@ -63,9 +61,8 @@ namespace ztl
 	return !(*this == right);\
 	}
 #define PRODUCT_EQUAL_OPERATOR(A,B) \
-	EQUAL_OPERATOR(LEFT_ARGS##A,LEFT_ARGS##B);
+	EQUAL_OPERATOR(PROTECT_PARAMETERS##A,PROTECT_PARAMETERS##B);
 
-	
 	class linq_exception
 	{
 	private:
@@ -74,14 +71,12 @@ namespace ztl
 		linq_exception() = delete;
 		linq_exception(const char* _message) :message(_message)
 		{
-
 		}
 		std::string what()const
 		{
 			return message;
 		}
 	};
-
 
 	template<typename UnaryPredicateType>
 	struct unary_negate
@@ -134,7 +129,259 @@ namespace ztl
 			return false;
 		}
 	};
+
+
+	template<typename container_type>
+	std::true_type check_container(const container_type & t,
+		decltype(t.begin())* p1 = 0,
+		decltype(t.end())* p2 = 0,
+		decltype(t.size())* p3 = 0,
+		decltype(t.empty())* p4 = 0
+		);
+	std::false_type check_container(...);
+
+	template<typename return_type>
+	auto container_retun_shared(return_type&& value, std::true_type)
+	{
+		return from_shared(std::make_shared<typename std::remove_reference<return_type>::type>(value));
+	}
+	template<typename return_type>
+	auto container_retun_shared(return_type&& value, std::false_type)
+	{
+		return value;
+	}
+	template<typename T>
+	auto return_value(T&& value)
+	{
+		return	container_retun_shared(std::forward<T>(value), decltype(check_container(std::forward<T>(value)))());
+	}
+
 	//iterator
+
+	//skip
+	template<typename element_type>
+	class empty_iterator
+	{
+	public:
+		using self_type = empty_iterator;
+		using value_type = element_type;
+		using pointer = element_type*;
+		using reference = element_type&;
+		using difference_type = size_t;
+		using iterator_category = std::forward_iterator_tag;
+
+	public:
+		element_type operator*()const
+		{
+			return element_type();
+		}
+	public:
+		//COMMON_ITERATOR_DECLARE(empty_iterator, );
+	public:
+
+		self_type& operator++()
+		{
+			return *this;
+		}
+
+		self_type operator++(int)
+		{
+			return *this;
+		}
+
+	public:
+		bool operator==(const self_type& right) const
+		{
+			return true;
+		}
+		bool operator!=(const self_type& right) const
+		{
+			return false;
+		}
+	};
+	//hide_type_iterator
+
+	//template<typename T>
+	//class hide_type_iterator
+	//{
+	//public:
+	//		using element_type = T;
+	//		using self_type = hide_type_iterator;
+	//		using value_type = element_type;
+	//		using pointer = element_type*;
+	//		using reference = element_type&;
+	//		using difference_type = size_t;
+	//		using iterator_category = std::forward_iterator_tag;
+	//		hide_type_iterator()
+	//		{
+	//
+	//		}
+	//private:
+	//	class iterator_interface
+	//	{
+	//		typedef iterator_interface								TSelf;
+	//	public:
+	//		virtual std::shared_ptr<TSelf>	next() = 0;
+	//		virtual T						deref() = 0;
+	//		virtual bool					equals(const std::shared_ptr<TSelf>& it) = 0;
+	//	};
+
+	//	template<typename TIterator>
+	//	class iterator_implement : public iterator_interface
+	//	{
+	//		typedef iterator_implement<TIterator>					TSelf;
+	//	private:
+	//		TIterator						iterator;
+
+	//	public:
+	//		iterator_implement(const TIterator& _iterator)
+	//			:iterator(_iterator)
+	//		{
+	//		}
+
+	//		std::shared_ptr<iterator_interface> next()override
+	//		{
+	//			TIterator t = iterator;
+	//			t++;
+	//			return std::make_shared<TSelf>(t);
+	//		}
+
+	//		/*T deref()override
+	//		{
+	//			return *iterator;
+	//		}*/
+
+	//		bool equals(const std::shared_ptr<iterator_interface>& it)override
+	//		{
+	//			auto impl = std::dynamic_pointer_cast<TSelf>(it);
+	//			return impl && (iterator == impl->iterator);
+
+	//		}
+	//	};
+
+	//	typedef hide_type_iterator<T>								TSelf;
+
+	//	std::shared_ptr<iterator_interface>		iterator;
+	//public:
+	//	template<typename TIterator>
+	//	hide_type_iterator(const TIterator& _iterator)
+	//		:iterator(std::make_shared<iterator_implement<TIterator>>(_iterator))
+	//	{
+	//	}
+
+	//	TSelf& operator++()
+	//	{
+	//		iterator = iterator->next();
+	//		return *this;
+	//	}
+
+	//	TSelf operator++(int)
+	//	{
+	//		TSelf t = *this;
+	//		iterator = iterator->next();
+	//		return t;
+	//	}
+
+	//	/*T operator*()const
+	//	{
+	//		return iterator->deref();
+	//	}*/
+
+	//	bool operator==(const TSelf& it)const
+	//	{
+	//		return iterator->equals(it.iterator);
+	//	}
+
+	//	bool operator!=(const TSelf& it)const
+	//	{
+	//		return !(iterator->equals(it.iterator));
+	//	}
+	//};
+
+	template<typename element_type>
+	class hide_type_iterator
+	{
+	public:
+		using self_type = hide_type_iterator;
+		using value_type = element_type;
+		using pointer = element_type*;
+		using reference = element_type&;
+		using difference_type = size_t;
+		using iterator_category = std::forward_iterator_tag;
+		hide_type_iterator()
+		{
+
+		}
+	private:
+		class iterator_interface
+		{
+		public:
+			virtual element_type dref() = 0;
+			virtual bool equal(const std::shared_ptr<iterator_interface>&) = 0;
+			virtual void next() = 0;
+		};
+		template<typename iterator_type>
+		class iterator_implement :public iterator_interface
+		{
+		private:
+			iterator_type iterator;
+		public:
+			iterator_implement(const iterator_type& _iterator) :iterator(_iterator)
+			{
+
+			}
+		public:
+			element_type dref() override
+			{
+				return *iterator;
+			}
+			bool equal(const std::shared_ptr<iterator_interface>& right)override
+			{
+				auto impl = std::dynamic_pointer_cast<iterator_implement<iterator_type>>(right);
+				//cout << "look" << endl;
+				//cout << check_type<decltype(impl->iterator)>() << endl;
+				//cout << check_type<decltype(iterator)>() << endl;
+
+				return impl && (iterator == impl->iterator);
+			}
+			void next()override
+			{
+				++iterator;
+			}
+		};
+	private:
+		std::shared_ptr<iterator_interface> iterator;
+	public:
+		template<typename iterator_type>
+		hide_type_iterator(const iterator_type& _iterator)
+			:iterator(std::shared_ptr<iterator_implement<iterator_type>>(new iterator_implement<iterator_type>(_iterator)))
+		{
+		}
+	public:
+		element_type operator*()const
+		{
+			return iterator->dref();
+		}
+		self_type& operator++()
+		{
+			iterator->next();
+			return *this;
+		}
+		self_type operator++(int)
+		{
+			auto temp = *this;
+			++*this;
+			return temp;
+		}
+		bool operator==(const self_type& right)const
+		{
+			return iterator->equal(right.iterator);
+		}
+		bool operator!=(const self_type& right)const
+		{
+			return !(*this == right);
+		}
+	};
 
 	//where
 	template<typename iterator_type, typename predicate_type>
@@ -198,7 +445,6 @@ namespace ztl
 			return !(*this == right);
 		}
 	};
-
 
 	//skip
 	template<typename iterator_type>
@@ -296,7 +542,6 @@ namespace ztl
 		}
 	};
 
-
 	//select
 
 	template<typename iterator_type, typename selector_type>
@@ -305,11 +550,19 @@ namespace ztl
 	private:
 		iterator_type iterator;
 		selector_type selector;
-	public:
-		auto operator*()->
-			RETURN_VALUE_TYPE(selector(*iterator)) const
+	private:
+		/*void dref_dispatch()
 		{
-				return selector(*iterator);
+
+		}*/
+	public:
+
+		auto operator*()->
+			RETURN_VALUE_TYPE(return_value(selector(*iterator))) const
+		{
+			//	cout << &*((*iterator).begin())<<endl;
+			//	cout << &*(result.begin()) << endl;
+				return return_value(selector(*iterator));
 		}
 		COMMON_ITERATOR_DECLARE(select_iterator, iterator_type);
 	public:
@@ -601,7 +854,7 @@ namespace ztl
 		}
 	};
 
-	template<typename iterator_type1,typename iterator_type2>
+	template<typename iterator_type1, typename iterator_type2>
 	class concat_iterator
 	{
 	private:
@@ -610,18 +863,17 @@ namespace ztl
 		iterator_type2 first2;
 		iterator_type2 last2;
 	public:
-		concat_iterator(const iterator_type1& _first1, const iterator_type& _last1, const iterator_type2& _first2, const iterator_type2& _last2)
+		concat_iterator(const iterator_type1& _first1, const iterator_type1& _last1, const iterator_type2& _first2, const iterator_type2& _last2)
 			:first1(_first1), last1(_last1), first2(_first2), last2(_last2)
 		{
-
 		}
 	public:
-		auto operator*()->RETURN_VALUE_TYPE(*first1) const
+		auto operator*()->RETURN_VALUE_TYPE(*first2) const
 		{
-			if (first1 == last1)
+			if(first1 == last1)
 			{
 				return *first2;
-			} 
+			}
 			else
 			{
 				return *first1;
@@ -637,7 +889,7 @@ namespace ztl
 			{
 				++first1;
 			}
-			else if(first2!=last2)
+			else if(first2 != last2)
 			{
 				++first2;
 			}
@@ -654,22 +906,72 @@ namespace ztl
 	public:
 		bool operator==(const self_type& right)const
 		{
-			PRODUCT_EQUAL_OPERATOR((
-				first1, first2, 
-				last1, last2), 
-				(right.first1, right.first2, 
-				right.last1, right.last2));
+			//cout << check_type<decltype(first1)>() << endl;
+
+			//cout << check_type<decltype(first2)>()<<endl;
+			if(first1 == last1)
+			{
+				//cout << *(right.first2) << endl;
+				//cout <<*first2 << endl;
+
+				return first2 == right.first2;
+
+			}
+			else 
+			{
+				return first1 == right.first1;
+			}
+			
+		//	return first1 == right.first1 && first2 == right.first2;
 		}
 		bool operator!=(const self_type& right)const
 		{
 			return !(operator==(right));
 		}
+		/*PRODUCT_EQUAL_OPERATOR((
+			first1, first2,
+			last1, last2),
+			(right.first1, right.first2,
+			right.last1, right.last2));*/
 	};
 
 	enum class order :bool
 	{
 		ascending,
 		descending,
+	};
+	template<typename iterator_type>
+	class enumerable;
+
+	//template<typename T>
+	//class linq : public enumerable<hide_type_iterator<T>>
+	//{
+	//public:
+	//	linq()
+	//	{
+	//	}
+
+	//	template<typename TIterator>
+	//	linq(const enumerable<TIterator>& e)
+	//		:enumerable<hide_type_iterator<T>>(
+	//		hide_type_iterator<T>(e.begin()),
+	//		hide_type_iterator<T>(e.end())
+	//		)
+	//	{
+	//	}
+	//};
+
+	template<typename element_type>
+	class linq : public enumerable<hide_type_iterator<element_type>>
+	{
+	public:
+		template<typename iterator_type>
+		linq(const enumerable<iterator_type> container)
+			:enumerable<hide_type_iterator<element_type>>(
+			hide_type_iterator<element_type>(container.begin()),
+			hide_type_iterator<element_type>(container.end()))
+		{
+		}
 	};
 	template<typename iterator_type>
 	class enumerable
@@ -685,6 +987,9 @@ namespace ztl
 		iterator_type	_begin;
 		iterator_type	_end;
 	public:
+		enumerable()
+		{
+		}
 		enumerable(const iterator_type& t_begin, const iterator_type& t_end) :_begin(t_begin), _end(t_end)
 		{
 		}
@@ -735,9 +1040,25 @@ namespace ztl
 				(_end, result_selector));
 		}
 
+		template<typename collection_selector_type>
+		decltype(auto) select_many(const collection_selector_type& collection_selector)
+		{
+			using element_type = std::remove_reference<decltype(
+				*collection_selector(
+				*_begin)
+				.begin())>::type;
+			
+			return select(collection_selector).aggregate([](auto&& init, auto&& element)
+			{
+				return init.concat(ztl::from(element));
+			}, from_empty<element_type>());
+		}
+
 		template<typename collection_selector_type, typename result_selector_type>
 		decltype(auto) select_many(const collection_selector_type& collection_selector, const result_selector_type& result_selector)
 		{
+			
+
 			using select_many_type = select_many_iterator<typename std::decay<decltype(begin())>::type, collection_selector_type, result_selector_type>;
 
 			return enumerable<select_many_type>(
@@ -969,22 +1290,29 @@ namespace ztl
 
 		*/
 		template<typename accumulator_type = std::plus<void>, typename init_type = int>
-		decltype(auto) aggregate(const iterator_type& fist,const iterator_type& last,const accumulator_type& accumulator = std::plus<void>(), const init_type& init = init_type())
+		init_type aggregate(const iterator_type& first, const iterator_type& last, const accumulator_type& accumulator = std::plus<void>(), const init_type& init = init_type())
 		{
-			return std::accumulate(first, last, init, accumulator);
+			init_type result = init;
+			for(iterator_type it = first; it != last; ++it)
+			{
+				auto& dt = *it;
+				//cout<<&*dt.begin()<<endl;
+				result = accumulator(result,dt);
+			}
+			return result;
+			//return std::accumulate(first, last, accumulator, init);
 		}
 
-
-		template< typename accumulator_type=std::plus<void>, typename init_type=int>
+		template< typename accumulator_type = std::plus<void>, typename init_type = int>
 		decltype(auto) aggregate(const accumulator_type& accumulator = std::plus<void>(), const init_type& init = init_type())
 		{
-			return aggregate(_begin, _end, init, accumulator);
+			return aggregate(_begin, _end,  accumulator,init);
 		}
-		template< typename result_selector_type, typename accumulator_type = std::plus<void>, typename init_type = int>
+		/*template< typename result_selector_type, typename accumulator_type = std::plus<void>, typename init_type = int>
 		decltype(auto) aggregate(const result_selector_type& result_selector, const accumulator_type& accumulator = std::plus<void>(), const init_type& init = init_type())
 		{
-			return select(result_selector).aggregate(accumulator,init);
-		}
+		return select(result_selector).aggregate(accumulator,init);
+		}*/
 		ALIAS_FORWARD_FUNCTION(accumulate, aggregate);
 
 		/*
@@ -1004,18 +1332,23 @@ namespace ztl
 		decltype(auto) concat(const iterator_type2& first, const iterator_type2& last)
 		{
 			using concat_type = concat_iterator<iterator_type, iterator_type2>;
-			return enumerable<concat_type>(concat_type(_begin, _end, first, last), concat_type(_end,_end,last,last));
+			return enumerable<concat_type>(concat_type(_begin, _end, first, last), concat_type(_end, _end, last, last));
+		}
+		template< typename container_type>
+		decltype(auto) concat(const container_type& container)
+		{
+			return concat(container.begin(), container.end());
 		}
 		/*
 			Contains<TSource>(IEnumerable<TSource>, TSource)
 			通过使用默认的相等比较器确定序列是否包含指定的元素。
 			Contains<TSource>(IEnumerable<TSource>, TSource, IEqualityComparer<TSource>)
 			通过使用指定的 IEqualityComparer<T> 确定序列是否包含指定的元素。
-		*/
-		template<typename value_type,typename compare_type=std::equal_to<void>>
+			*/
+		template<typename value_type, typename compare_type = std::equal_to<void>>
 		bool contains(const value_type& value, const compare_type& compare = std::equal_to<void>())
 		{
-			return any([&value,&compare](auto&& elemnt)
+			return any([&value, &compare](auto&& elemnt)
 			{
 				return compare(element, value);
 			});
@@ -1027,10 +1360,10 @@ namespace ztl
 		Count<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
 		返回一个数字，表示在指定的序列中满足条件的元素数量。
 		*/
-		template<typename selector_type=ztl::always_true<value_type>>
+		template<typename selector_type = ztl::always_true<value_type>>
 		decltype(auto) count(const selector_type& selector = ztl::always_true<value_type>())
 		{
-			return std::count_if(_begin,_end,selector);
+			return std::count_if(_begin, _end, selector);
 		}
 
 		/*
@@ -1045,7 +1378,6 @@ namespace ztl
 			auto temp_set = std::make_shared<unordered_set>();
 			std::for_each(_begin, _end, [&temp_set](auto&& element)
 			{
-				
 				if(temp_set->find(element) == temp_set->end())
 				{
 					temp_set->insert(element);
@@ -1057,35 +1389,32 @@ namespace ztl
 		/*
 
 		ElementAt<TSource>	返回序列中指定索引处的元素。
-		
+
 		*/
 		decltype(auto) element_at(const size_t& index)
 		{
-			return *std::next(_begin,index);
+			return *std::next(_begin, index);
 		}
 
-		
 		bool empty()const
 		{
 			return _begin == _end;
 		}
 		/*
-		
 
 		Except<TSource>(IEnumerable<TSource>, IEnumerable<TSource>)
 		通过使用默认的相等比较器对值进行比较生成两个序列的差集。
 		Except<TSource>(IEnumerable<TSource>, IEnumerable<TSource>, IEqualityComparer<TSource>)
 		通过使用指定的 IEqualityComparer<T> 对值进行比较产生两个序列的差集。
 		*/
-		template< typename iterator_type,typename compare_type=std::equal_to<void>>
-		decltype(auto) except(const iterator_type& first, const iterator_type& last, const compare_type& compare=std::equal_to<void>())
+		template< typename iterator_type, typename compare_type = std::equal_to<void>>
+		decltype(auto) except(const iterator_type& first, const iterator_type& last, const compare_type& compare = std::equal_to<void>())
 		{
 			auto result = make_shared<vector<value_type>>();
 			std::set_difference(first, last, _begin, _end, *result.get(), compare);
 			return from_shared(result);
 		}
 		/*
-		
 
 		Intersect<TSource>(IEnumerable<TSource>, IEnumerable<TSource>)
 		通过使用默认的相等比较器对值进行比较生成两个序列的交集。
@@ -1096,7 +1425,7 @@ namespace ztl
 		decltype(auto) intersect(const iterator_type& first, const iterator_type& last, const compare_type& compare = std::equal_to<void>())
 		{
 			auto result = make_shared<vector<value_type>>();
-			std::set_intersection(first,last,_begin,_end,compare);
+			std::set_intersection(first, last, _begin, _end, compare);
 			return from_shared(result);
 		}
 
@@ -1112,7 +1441,7 @@ namespace ztl
 		*/
 
 		template<typename selector_type = ztl::always_true>
-		decltype(auto) first(const selector_type& selector )
+		decltype(auto) first(const selector_type& selector)
 		{
 			if(empty())
 			{
@@ -1122,7 +1451,7 @@ namespace ztl
 		}
 
 		template<typename selector_type = ztl::always_true>
-		decltype(auto) last(const selector_type& selector )
+		decltype(auto) last(const selector_type& selector)
 		{
 			if(empty())
 			{
@@ -1163,10 +1492,10 @@ namespace ztl
 		/*
 		Range	生成指定范围内的整数的序列。
 		*/
-		template<typename value_type=int>
+		template<typename value_type = int>
 		decltype(auto) range(const value_type& start, const value_type& count = value_type(), const value_type& diff = 1)
 		{
-			if (!std::is_integral<value_type>::value)
+			if(!std::is_integral<value_type>::value)
 			{
 				throw linq_exception("value_type not integral!");
 			}
@@ -1179,16 +1508,15 @@ namespace ztl
 			}
 			return from_shared(result);
 		}
-		
-		
 
 		/*
 		Reverse
 		*/
 		decltype(auto) reverse()
 		{
-			using reverse_type = std::reverse_iterator<iterator_type>;
-			return enumerable<reverse_type>(reverse_type(_begin), reverse_type(_end));
+			auto result = make_shared<vector<value_type>>(_begin, _end);
+			std::reverse(result->begin, result->end);
+			return from_shared(result);
 		}
 		/*
 		Skip<TSource>	跳过序列中指定数量的元素，然后返回剩余的元素。
@@ -1205,7 +1533,7 @@ namespace ztl
 		{
 			return remove(selector);
 		}
-		
+
 		/*
 		sum
 		*/
@@ -1238,7 +1566,6 @@ namespace ztl
 		}
 
 		/*
-		
 
 		ThenBy<TSource, TKey>(IOrderedEnumerable<TSource>, Func<TSource, TKey>)
 		根据某个键按升序对序列中的元素执行后续排序。
@@ -1252,11 +1579,9 @@ namespace ztl
 		*/
 		decltype(auto) first_by()
 		{
-
 		}
 		decltype(auto) then_by()
 		{
-
 		}
 
 		/*
@@ -1267,24 +1592,24 @@ namespace ztl
 		通过使用指定的 IEqualityComparer<T> 生成两个序列的并集。
 		*/
 		template< typename iterator_type, typename compare_type = std::equal_to<void>>
-		decltype(auto) Union(const iterator_type& first, const iterator_type& last, const compare_type& compare = std::equal_to<void>())
+		decltype(auto) union_with(const iterator_type& first, const iterator_type& last, const compare_type& compare = std::equal_to<void>())
 		{
 			auto result = make_shared<vector<value_type>>();
-			std::set_union(first,last,_begin,_end,*result.get(),compare);
+			std::set_union(first, last, _begin, _end, *result.get(), compare);
 			return from_shared(result);
 		}
 
-		template<template selector_type>
+		template<typename selector_type>
 		decltype(auto) any(const selector_type& selector)
 		{
-			return std::any_of(_begin,_end,selector);
+			return std::any_of(_begin, _end, selector);
 		}
-		template<template selector_type>
+		template<typename selector_type>
 		decltype(auto) all(const selector_type& selector)
 		{
 			return std::all_of(_begin, _end, selector);
 		}
-		template<template selector_type>
+		template<typename selector_type>
 		decltype(auto) none(const selector_type& selector)
 		{
 			return std::none_of(_begin, _end, selector);
@@ -1292,16 +1617,39 @@ namespace ztl
 		decltype(auto) single()
 		{
 			auto next = _begin;
-			if (empty())
+			if(empty())
 			{
 				throw linq_exception("container is empty!");
 			}
-			else if( ++next == _end)
+			else if(++next == _end)
 			{
 				throw linq_exception("container has element more than one!");
 			}
 			return *_begin;
 		}
+
+		template<typename selector_type>
+		auto to_vector(const selector_type& selector)
+			->std::vector<decltype(selector(value_type()))> const
+		{
+			std::vector<decltype(selector(value_type()))> container;
+			for(auto it = begin(); it != end(); ++it)
+			{
+				container.insert(std::end(container), selector(*it));
+			}
+			return std::move(container);
+		}
+		auto to_vector()
+			->std::vector<value_type> const
+		{
+			std::vector<value_type> container;
+			for(auto it = begin(); it != end(); ++it)
+			{
+				container.insert(container.end(), *it);
+			}
+			return std::move(container);
+		}
+
 #define TO_STL_SEQUENCE_CONTAINER_FUNCTION(STL_SEQUENCE_CONTAINER_NAME) \
 	template<typename selector_type>\
 	auto to_##STL_SEQUENCE_CONTAINER_NAME(const selector_type& selector)\
@@ -1325,7 +1673,7 @@ namespace ztl
 		return std::move(container);\
 		}
 
-		TO_STL_SEQUENCE_CONTAINER_FUNCTION(vector);
+		//TO_STL_SEQUENCE_CONTAINER_FUNCTION(vector);
 		TO_STL_SEQUENCE_CONTAINER_FUNCTION(unordered_set);
 		TO_STL_SEQUENCE_CONTAINER_FUNCTION(unordered_multiset);
 #undef TO_STL_SEQUENCE_CONTAINER_FUNCTION
@@ -1386,5 +1734,11 @@ namespace ztl
 	decltype(auto) from_value(const value_type& value)
 	{
 		return from(std::vector<value_type>(1, value));
+	}
+	template<typename element_type>
+	linq<element_type> from_empty()
+	{
+		using empty_type = empty_iterator<element_type>;
+		return linq<element_type>(enumerable<empty_type>(empty_type(), empty_type()));
 	}
 }
