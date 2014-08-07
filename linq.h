@@ -99,8 +99,8 @@ namespace ztl
 	{
 		while(first1 != last1 && first2 != last2)
 		{
-			auto f1 = *first1;
-			auto f2 = *first2;
+			//auto f1 = *first1;
+			//auto f2 = *first2;
 			if(*first1 != *first2)
 			{
 				return false;
@@ -116,7 +116,7 @@ namespace ztl
 	template<typename value_type>
 	struct always_true
 	{
-		bool operator()(const value_type& value)
+		bool operator()(const value_type& value)const
 		{
 			return true;
 		}
@@ -124,12 +124,11 @@ namespace ztl
 	template<typename value_type>
 	struct always_false
 	{
-		bool operator()(const value_type& value)
+		bool operator()(const value_type& value)const
 		{
 			return false;
 		}
 	};
-
 
 	template<typename container_type>
 	std::true_type check_container(const container_type & t,
@@ -310,7 +309,6 @@ namespace ztl
 		using iterator_category = std::forward_iterator_tag;
 		hide_type_iterator()
 		{
-
 		}
 	private:
 		class iterator_interface
@@ -328,7 +326,6 @@ namespace ztl
 		public:
 			iterator_implement(const iterator_type& _iterator) :iterator(_iterator)
 			{
-
 			}
 		public:
 			element_type dref() override
@@ -447,12 +444,13 @@ namespace ztl
 	};
 
 	//skip
-	template<typename iterator_type>
+	template<typename iterator_type, typename predicate_type>
 	class skip_iterator
 	{
 	private:
 		iterator_type iterator;
 		iterator_type end;
+		predicate_type pred;
 	public:
 		auto operator*()->RETURN_VALUE_TYPE(*iterator) const
 		{
@@ -462,11 +460,11 @@ namespace ztl
 		COMMON_ITERATOR_DECLARE(skip_iterator, iterator_type);
 	public:
 		skip_iterator() = delete;
-		skip_iterator(const iterator_type& _iterator, const iterator_type& _end, const size_t& count) : end(_end)
+		skip_iterator(const iterator_type& _iterator, const iterator_type& _end, const predicate_type& _pred)
+			:end(_end), pred(_pred)
 		{
-			if(iterator != end)
+			for(iterator = _iterator; iterator != end && pred(*iterator); ++iterator)
 			{
-				iterator = std::next(_iterator, count);
 			}
 		}
 	public:
@@ -496,13 +494,13 @@ namespace ztl
 	};
 
 	//take
-	template<typename iterator_type>
+	template<typename iterator_type, typename predicate_type>
 	class take_iterator
 	{
 	private:
 		iterator_type iterator;
 		iterator_type end;
-		size_t count;
+		predicate_type pred;
 	public:
 		auto operator*()->RETURN_VALUE_TYPE(*iterator) const
 		{
@@ -512,9 +510,22 @@ namespace ztl
 		COMMON_ITERATOR_DECLARE(take_iterator, iterator_type);
 	public:
 		take_iterator() = delete;
-		take_iterator(const iterator_type& _iterator, const size_t& _count) :iterator(_iterator), count(_count)
+		take_iterator(const iterator_type& _iterator, const iterator_type& _end, const predicate_type& _pred)
+			:pred(_pred)
 		{
-			end = std::next(iterator, count);
+			if(_iterator != _end)
+			{
+				//end迭代器
+				for(iterator = _iterator; iterator != _end && pred(*iterator); ++iterator)
+				{
+				}
+				end = iterator;
+			}
+			else
+			{
+				iterator = _iterator;
+				end = _end;
+			}
 		}
 	public:
 
@@ -550,19 +561,15 @@ namespace ztl
 	private:
 		iterator_type iterator;
 		selector_type selector;
-	private:
-		/*void dref_dispatch()
-		{
-
-		}*/
 	public:
 
 		auto operator*()->
-			RETURN_VALUE_TYPE(return_value(selector(*iterator))) const
+			RETURN_VALUE_TYPE(selector(*iterator)) const
+			//RETURN_VALUE_TYPE(return_value(selector(*iterator))) const
 		{
-			//	cout << &*((*iterator).begin())<<endl;
-			//	cout << &*(result.begin()) << endl;
-				return return_value(selector(*iterator));
+				//	cout << &*((*iterator).begin())<<endl;
+				//	cout << &*(result.begin()) << endl;
+				return selector(*iterator);
 		}
 		COMMON_ITERATOR_DECLARE(select_iterator, iterator_type);
 	public:
@@ -915,14 +922,13 @@ namespace ztl
 				//cout <<*first2 << endl;
 
 				return first2 == right.first2;
-
 			}
-			else 
+			else
 			{
 				return first1 == right.first1;
 			}
-			
-		//	return first1 == right.first1 && first2 == right.first2;
+
+			//	return first1 == right.first1 && first2 == right.first2;
 		}
 		bool operator!=(const self_type& right)const
 		{
@@ -1018,11 +1024,6 @@ namespace ztl
 				);
 		}
 
-		template<typename predicate_type>
-		decltype(auto) copy(predicate_type&& pred)
-		{
-			return where(std::forward<predicate_type>(pred));
-		}
 
 		template<typename predicate_type>
 		decltype(auto) remove(predicate_type&& pred)
@@ -1043,22 +1044,25 @@ namespace ztl
 		template<typename collection_selector_type>
 		decltype(auto) select_many(const collection_selector_type& collection_selector)
 		{
-			using element_type = std::remove_reference<decltype(
+			auto result_selector = [](auto&& collection_element, auto&& element)
+			{
+				return element;
+			};
+			return select_many(collection_selector, result_selector);
+			/*using element_type = std::remove_reference<decltype(
 				*collection_selector(
 				*_begin)
 				.begin())>::type;
-			
-			return select(collection_selector).aggregate([](auto&& init, auto&& element)
-			{
+
+				return select(collection_selector).aggregate([](auto&& init, auto&& element)
+				{
 				return init.concat(ztl::from(element));
-			}, from_empty<element_type>());
+				}, from_empty<element_type>());*/
 		}
 
 		template<typename collection_selector_type, typename result_selector_type>
 		decltype(auto) select_many(const collection_selector_type& collection_selector, const result_selector_type& result_selector)
 		{
-			
-
 			using select_many_type = select_many_iterator<typename std::decay<decltype(begin())>::type, collection_selector_type, result_selector_type>;
 
 			return enumerable<select_many_type>(
@@ -1185,7 +1189,7 @@ namespace ztl
 			auto hash_map = std::make_shared<std::unordered_map<key_type, std::vector<element_type>>>();
 			for(auto it = _begin; it != _end; ++it)
 			{
-				auto value = *_begin;
+				auto value = *it;
 				auto key = key_selector(value);
 				auto& find_iter = hash_map->find(key);
 				if(find_iter == hash_map->end())
@@ -1194,7 +1198,7 @@ namespace ztl
 				}
 				else
 				{
-					hash_map[key].emplace_back(value);
+					hash_map->operator[](key).emplace_back(value);
 				}
 			}
 			return from_shared(hash_map->begin(), hash_map->end(), hash_map);
@@ -1271,7 +1275,7 @@ namespace ztl
 			{
 				auto t = *_begin;
 
-				std::cout << t << " " << " " << std::endl;
+				std::cout << t  << " " << std::endl;
 			}
 			/*std::for_each(_begin, _end, [](auto&& a)
 			{
@@ -1289,24 +1293,29 @@ namespace ztl
 		对序列应用累加器函数。 将指定的种子值用作累加器的初始值，并使用指定的函数选择结果值。
 
 		*/
-		template<typename accumulator_type = std::plus<void>, typename init_type = int>
-		init_type aggregate(const iterator_type& first, const iterator_type& last, const accumulator_type& accumulator = std::plus<void>(), const init_type& init = init_type())
+		template<typename accumulator_type, typename init_type>
+		init_type aggregate(const iterator_type& first, const iterator_type& last, const accumulator_type& accumulator, const init_type& init)
 		{
 			init_type result = init;
 			for(iterator_type it = first; it != last; ++it)
 			{
 				auto& dt = *it;
 				//cout<<&*dt.begin()<<endl;
-				result = accumulator(result,dt);
+				result = accumulator(result, dt);
 			}
 			return result;
 			//return std::accumulate(first, last, accumulator, init);
 		}
 
-		template< typename accumulator_type = std::plus<void>, typename init_type = int>
-		decltype(auto) aggregate(const accumulator_type& accumulator = std::plus<void>(), const init_type& init = init_type())
+		template< typename accumulator_type, typename init_type>
+		decltype(auto) aggregate(const accumulator_type& accumulator, const init_type& init)
 		{
-			return aggregate(_begin, _end,  accumulator,init);
+			return aggregate(_begin, _end, accumulator, init);
+		}
+		template< typename accumulator_type>
+		decltype(auto) aggregate(const accumulator_type& accumulator)
+		{
+			return aggregate(_begin, _end, accumulator, value_type());
 		}
 		/*template< typename result_selector_type, typename accumulator_type = std::plus<void>, typename init_type = int>
 		decltype(auto) aggregate(const result_selector_type& result_selector, const accumulator_type& accumulator = std::plus<void>(), const init_type& init = init_type())
@@ -1318,13 +1327,10 @@ namespace ztl
 		/*
 		average
 		*/
-		decltype(auto) average()
+		value_type average()
 		{
 			auto n = count();
-			return aggregate([&n](auto&& element)
-			{
-				return element / n;
-			});
+			return sum() / n;
 		}
 		//Concat<TSource>	连接两个序列。
 
@@ -1348,7 +1354,7 @@ namespace ztl
 		template<typename value_type, typename compare_type = std::equal_to<void>>
 		bool contains(const value_type& value, const compare_type& compare = std::equal_to<void>())
 		{
-			return any([&value, &compare](auto&& elemnt)
+			return any([&value, &compare](auto&& element)
 			{
 				return compare(element, value);
 			});
@@ -1375,7 +1381,7 @@ namespace ztl
 		template< typename compare_type = std::equal_to<void>>
 		decltype(auto) distinct(const compare_type& compare = std::equal_to<void>())
 		{
-			auto temp_set = std::make_shared<unordered_set>();
+			auto temp_set = std::make_shared<std::unordered_set<value_type>>();
 			std::for_each(_begin, _end, [&temp_set](auto&& element)
 			{
 				if(temp_set->find(element) == temp_set->end())
@@ -1391,7 +1397,7 @@ namespace ztl
 		ElementAt<TSource>	返回序列中指定索引处的元素。
 
 		*/
-		decltype(auto) element_at(const size_t& index)
+		value_type element_at(const size_t& index)
 		{
 			return *std::next(_begin, index);
 		}
@@ -1440,51 +1446,69 @@ namespace ztl
 		返回序列中满足指定条件的最后一个元素。
 		*/
 
-		template<typename selector_type = ztl::always_true>
-		decltype(auto) first(const selector_type& selector)
+		template<typename selector_type = ztl::always_true<value_type>>
+		decltype(auto) first(const selector_type& selector=ztl::always_true<value_type>())
 		{
 			if(empty())
 			{
 				throw linq_exception("error!container is empty!");
 			}
-			return *first;
+			for(auto it = _begin; it != _end;++it)
+			{
+				if (selector(*it))
+				{
+					return *it;
+				}
+			}
+			throw linq_exception("error!none element could pass selector!");
+			return *_begin;
 		}
 
-		template<typename selector_type = ztl::always_true>
-		decltype(auto) last(const selector_type& selector)
+		template<typename selector_type = ztl::always_true<value_type>>
+		auto last(const selector_type& selector=ztl::always_true<value_type>())
 		{
 			if(empty())
 			{
 				throw linq_exception("error!container is empty!");
 			}
 			auto it = _begin;
-			auto result = *it;
+			bool is_null = true;
+			value_type result = value_type();
 			while(++it != _end)
 			{
-				result = *it;
+				auto value = *it;
+				if(selector(value))
+				{
+					result = value;
+					is_null = false;
+				}
+			}
+			if(is_null == true)
+			{
+				throw linq_exception("error!none element could pass selector!");
 			}
 			return result;
 		}
 
-		decltype(auto) min_value()
+		value_type min_value()
 		{
 			if(empty())
 			{
 				throw linq_exception("error!container is empty!");
 			}
-			this->aggregate(std::next(_begin), _end, [](auto&& a, auto&&b)
+			return this->aggregate(std::next(_begin), _end, [](auto&& a, auto&&b)
 			{
 				return a < b ? a : b;
 			}, *_begin);
 		}
 
-		decltype(auto) max_value()
+		value_type max_value()
 		{
 			if(empty())
 			{
 				throw linq_exception("error!container is empty!");
 			}
-			this->aggregate(std::next(_begin), _end, [](auto&& a, auto&&b)
+			return this->aggregate(std::next(_begin), _end, [](auto&& a, auto&&b)
 			{
 				return a > b ? a : b;
 			}, *_begin);
@@ -1512,10 +1536,10 @@ namespace ztl
 		/*
 		Reverse
 		*/
-		decltype(auto) reverse()
+		auto reverse()->enumerable<storage_iterator<decltype(std::vector<value_type>().begin()), std::shared_ptr<std::vector<value_type>>>>
 		{
-			auto result = make_shared<vector<value_type>>(_begin, _end);
-			std::reverse(result->begin, result->end);
+			auto result = std::make_shared<std::vector<value_type>>(_begin, _end);
+			std::reverse(result->begin(), result->end());
 			return from_shared(result);
 		}
 		/*
@@ -1523,46 +1547,76 @@ namespace ztl
 		SkipWhile<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
 		只要满足指定的条件，就跳过序列中的元素，然后返回剩余元素。
 		*/
-		decltype(auto) skip(const size_t& count)
+		enumerable<skip_iterator<iterator_type, std::function<bool(const value_type&)>>>
+			skip(const size_t& count)
 		{
-			using skip_type = skip_iterator<iterator_type>;
-			return enumerable<skip_type>(skip_type(_begin, _end, count), skip_type(_end, _end, count));
+				size_t increase = 0;
+				std::function<bool(const value_type&)> selector = [increase, count](const value_type& element)mutable
+				{
+					if(increase < count)
+					{
+						increase++;
+						return true;
+					}
+					else
+					{
+						increase++;
+						return false;
+					}
+				};
+				return skip_while(selector);
 		}
 		template< typename selector_type >
 		decltype(auto) skip_while(const selector_type& selector)
 		{
-			return remove(selector);
+			using skip_type = skip_iterator<iterator_type, selector_type>;
+			return enumerable<skip_type>(skip_type(_begin, _end, selector), skip_type(_end, _end, selector));
 		}
 
 		/*
 		sum
 		*/
-		decltype(auto) sum()
+		value_type sum()
 		{
 			if(empty())
 			{
 				throw linq_exception("error!container is empty!");
 			}
-			this->aggregate(std::next(_begin), _end, [](auto&& a, auto&&b)
+			return	aggregate(std::next(_begin), _end, [](auto&& a, auto&&b)
 			{
 				return  a + b;
 			}, *_begin);
 		}
-
 		/*
 		Skip<TSource>	跳过序列中指定数量的元素，然后返回剩余的元素。
 		SkipWhile<TSource>(IEnumerable<TSource>, Func<TSource, Boolean>)
 		只要满足指定的条件，就跳过序列中的元素，然后返回剩余元素。
 		*/
-		decltype(auto) take(const size_t& count)
+		enumerable<take_iterator<iterator_type, std::function<bool(const value_type&)>>>
+			take(const size_t& count)
 		{
-			using take_type = take_iterator<iterator_type>;
-			return enumerable<take_type>(take_type(_begin, _end, count), take_type(_end, _end, count));
+				size_t increase = 0;
+				std::function<bool(const value_type&)> selector = [increase, count](const value_type& element)mutable
+				{
+					if(increase < count)
+					{
+						increase++;
+						return true;
+					}
+					else
+					{
+						increase++;
+						return false;
+					}
+				};
+				using take_type = take_iterator<iterator_type, std::function<bool(const value_type&)>>;
+				return take_while(selector);
 		}
-		template< typename selector_type >
+		template<typename selector_type>
 		decltype(auto) take_while(const selector_type& selector)
 		{
-			return where(selector);
+			using take_type = take_iterator<iterator_type, selector_type>;
+			return enumerable<take_type>(take_type(_begin, _begin, selector), take_type(_begin, _end, selector));
 		}
 
 		/*
@@ -1715,17 +1769,18 @@ namespace ztl
 		return from(e.begin(), e.end());
 	}
 	template<typename iterator_type, typename container_type>
-	decltype(auto) from_shared(const iterator_type& _begin, const iterator_type& _end, const container_type& conatiner)
+	enumerable <storage_iterator<iterator_type, container_type >>
+		from_shared(const iterator_type& _begin, const iterator_type& _end, const container_type& conatiner)
 	{
-		return enumerable <
-			storage_iterator < iterator_type, container_type >>
-			(
-			storage_iterator<iterator_type, container_type>(_begin, conatiner),
-			storage_iterator<iterator_type, container_type>(_end, conatiner)
-			);
+			return enumerable <
+				storage_iterator < iterator_type, container_type >>
+				(
+				storage_iterator<iterator_type, container_type>(_begin, conatiner),
+				storage_iterator<iterator_type, container_type>(_end, conatiner)
+				);
 	}
 	template<typename container_type>
-	decltype(auto) from_shared(const std::shared_ptr<container_type>& container)
+	auto from_shared(const std::shared_ptr<container_type>& container)->decltype(enumerable<storage_iterator<decltype(container->begin()), container_type>>)
 	{
 		return from_shared(container->begin(), container->end(), container);
 	}
