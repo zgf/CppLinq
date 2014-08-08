@@ -579,9 +579,9 @@ int main()
 	test_set_operator();
 	test_single();
 	test_inner_jion();
-//	test_outer_jion();
 	test_outer_group_jion();
 	test_inner_group_jion();
+	//	test_outer_jion();
 
 	return 0;
 }
