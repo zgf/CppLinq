@@ -63,6 +63,17 @@ namespace ztl
 #define PRODUCT_EQUAL_OPERATOR(A,B) \
 	EQUAL_OPERATOR(PROTECT_PARAMETERS##A,PROTECT_PARAMETERS##B);
 
+#define PRODUCT_CONTAINER_FROWARD(NAME)\
+	template<typename T1,typename... ArgType>\
+	decltype(auto) NAME(T1 frist,ArgType... args)\
+	{\
+		return NAME(frist.begin(), first.end(), std::forward<ArgType...>(args)...);\
+	}\
+	template<typename T1, typename... ArgType>\
+	decltype(auto) NAME(std::shared_ptr<T1> frist, ArgType... args)\
+	{\
+		return NAME(frist->begin(), first->end(), std::forward<ArgType...>(args)...);\
+	}
 	class linq_exception
 	{
 	private:
@@ -1041,31 +1052,6 @@ namespace ztl
 				});
 		}
 
-		//template<typename inner_iterator_type, typename outer_key_selector_type,
-		//	typename inner_key_selector_type, typename result_selector_type>
-		//	decltype(auto) outer_join(
-		//	const inner_iterator_type& inner_begin,
-		//	const inner_iterator_type& inner_end,
-		//	const outer_key_selector_type& out_key_selector,
-		//	const inner_key_selector_type& inner_key_selector,
-		//	const result_selector_type& result_selector)
-		//{
-		//		/*return	outer_group_join(inner_begin, inner_end, out_key_selector, inner_key_selector, [](auto&& outer_element, auto&& inner_list)
-		//		{
-		//			return std::make_pair(outer_element, inner_list);
-		//		}).select_many([&result_selector](auto&& pair_element)
-		//		{
-		//			return pair_element.second;
-		//		}, [&result_selector](auto&& pair_element, auto&& element)
-		//		{
-		//			return result_selector(pair_element.first, element);
-		//		});*/
-		//		/*auto query = inner_join(inner_begin, inner_end, out_key_selector, inner_key_selector, [](auto&& outer_element, auto&& inner_list)
-		//		{
-		//			return std::make_pair(outer_element, inner_list);
-		//		});*/
-
-		//}
 
 		template<typename key_selector_type>
 		decltype(auto) group_by(const key_selector_type& key_selector)

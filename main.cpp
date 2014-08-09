@@ -128,50 +128,7 @@ void test_inner_jion()
 		std::make_pair<string, string>(string("小李"), string("李狗2")),
 		std::make_pair<string, string>(string("小王"), string("王狗")) }));
 }
-void test_outer_jion()
-{
-	class Person
-	{
-	public:
-		string Name;
-	};
 
-	class Pet
-	{
-	public:
-		string Name;
-		Person Owner;
-	};
-	Person magnus = Person { "小明" };
-	Person terry = Person { "小李" };
-	Person charlotte = Person { "小王" };
-
-	Pet barley = Pet { "李狗1", terry };
-	Pet boots = Pet { "李狗2", terry };
-	Pet whiskers = Pet { "王狗", charlotte };
-	Pet daisy = Pet { "明狗", magnus };
-
-	vector<Person> people = { magnus, terry, charlotte };
-	vector<Pet> pets = { barley, boots, whiskers, daisy };
-
-	/*assert(*/ztl::from(people).outer_join(pets.begin(), pets.end(),
-		[](auto&& person)
-	{
-		return person.Name;
-	},
-		[](auto&& pet)
-	{
-		return pet.Owner.Name;
-	},
-		[](auto&&  person, auto&& pet)
-	{
-		return std::make_pair(person.Name, pet.Name);
-	}).print_pair();/*.equal({ std::make_pair<string, string>(string("小明"), string("明狗")),
-		std::make_pair<string, string>(string("小李"), string("李狗1")),
-		std::make_pair<string, string>(string("小李"), string("李狗2")),
-		std::make_pair<string, string>(string("小王"), string("王狗")) ,
-		std::make_pair<string, string>(string("小菜"), string()) }));*/
-}
 void test_outer_group_jion()
 {
 	class Person
@@ -581,7 +538,6 @@ int main()
 	test_inner_jion();
 	test_outer_group_jion();
 	test_inner_group_jion();
-	//	test_outer_jion();
 
 	return 0;
 }
