@@ -8,7 +8,6 @@
 #include <numeric>
 #include <exception>
 #include <string>
-//#include <tuple>
 #include "check_type.hpp"
 namespace ztl
 {
@@ -49,31 +48,24 @@ namespace ztl
 #define RETURN_VALUE_TYPE(RETURN_VALUE)\
 	typename std::remove_reference<decltype(RETURN_VALUE)>::type
 
-#define PROTECT_PARAMETERS(...) __VA_ARGS__
-
-#define EQUAL_OPERATOR(LEFT,RIGHT)\
-	bool operator==(const self_type& right) const\
+#define PROTECT_PARAMETERS(...) ,##__VA_ARGS__
+#define SUPPORT_STL_CONTAINERS_EX(NAME, TYPE_ARGS, PARAMETERS, ARGUMENTS)\
+	template<typename container_type TYPE_ARGS>\
+	decltype(auto) NAME(const container_type& container PARAMETERS)\
 	{\
-	return 	std::tie(LEFT) == std::tie(RIGHT);\
+	return NAME(container.begin(),container.end() ARGUMENTS); \
 	}\
-	bool operator!=(const self_type& right) const\
+	template<typename element_type TYPE_ARGS>\
+	decltype(auto) NAME(const std::initializer_list<element_type>& container PARAMETERS)\
 	{\
-	return !(*this == right);\
-	}
-#define PRODUCT_EQUAL_OPERATOR(A,B) \
-	EQUAL_OPERATOR(PROTECT_PARAMETERS##A,PROTECT_PARAMETERS##B);
-
-#define PRODUCT_CONTAINER_FROWARD(NAME)\
-	template<typename T1,typename... ArgType>\
-	decltype(auto) NAME(T1 frist,ArgType... args)\
-	{\
-		return NAME(frist.begin(), first.end(), std::forward<ArgType...>(args)...);\
+	return NAME(container.begin(),container.end() ARGUMENTS); \
 	}\
-	template<typename T1, typename... ArgType>\
-	decltype(auto) NAME(std::shared_ptr<T1> frist, ArgType... args)\
+	template<typename container_type TYPE_ARGS>\
+	decltype(auto) NAME(const std::shared_ptr<container_type>& container PARAMETERS)\
 	{\
-		return NAME(frist->begin(), first->end(), std::forward<ArgType...>(args)...);\
-	}
+	return NAME(container->begin(),container->end() ARGUMENTS); \
+	}\
+
 	class linq_exception
 	{
 	private:
@@ -1008,6 +1000,20 @@ namespace ztl
 					outer_group_join_type(end(), end(), inner_end, inner_end,
 					out_key_selector, inner_key_selector, reuslt_selector));
 		}
+
+		SUPPORT_STL_CONTAINERS_EX(outer_group_join,
+			PROTECT_PARAMETERS(
+			typename outer_key_selector_type,
+			typename inner_key_selector_type,
+			typename result_selector_type),
+			PROTECT_PARAMETERS(
+			const outer_key_selector_type& out_key_selector,
+			const inner_key_selector_type& inner_key_selector,
+			const result_selector_type& reuslt_selector),
+			PROTECT_PARAMETERS(
+			out_key_selector,
+			inner_key_selector,
+			reuslt_selector));
 		template<typename inner_iterator_type, typename outer_key_selector_type,
 			typename inner_key_selector_type, typename result_selector_type>
 			decltype(auto) inner_group_join(
@@ -1030,7 +1036,19 @@ namespace ztl
 					return reuslt_selector(element.first, element.second);
 				});
 		}
-
+		SUPPORT_STL_CONTAINERS_EX(inner_group_join,
+			PROTECT_PARAMETERS(
+			typename outer_key_selector_type,
+			typename inner_key_selector_type,
+			typename result_selector_type),
+			PROTECT_PARAMETERS(
+			const outer_key_selector_type& out_key_selector,
+			const inner_key_selector_type& inner_key_selector,
+			const result_selector_type& reuslt_selector),
+			PROTECT_PARAMETERS(
+			out_key_selector,
+			inner_key_selector,
+			reuslt_selector));
 		template<typename inner_iterator_type, typename outer_key_selector_type,
 			typename inner_key_selector_type, typename result_selector_type>
 			decltype(auto) inner_join(
@@ -1051,7 +1069,19 @@ namespace ztl
 					return result_selector(pair_element.first, element);
 				});
 		}
-
+		SUPPORT_STL_CONTAINERS_EX(inner_join,
+			PROTECT_PARAMETERS(
+			typename outer_key_selector_type,
+			typename inner_key_selector_type,
+			typename result_selector_type),
+			PROTECT_PARAMETERS(
+			const outer_key_selector_type& out_key_selector,
+			const inner_key_selector_type& inner_key_selector,
+			const result_selector_type& reuslt_selector),
+			PROTECT_PARAMETERS(
+			out_key_selector,
+			inner_key_selector,
+			reuslt_selector));
 
 		template<typename key_selector_type>
 		decltype(auto) group_by(const key_selector_type& key_selector)
@@ -1097,22 +1127,30 @@ namespace ztl
 			return group_by(key_selector, element_selector).select(result_selector);
 		}
 
-		template<typename iterator_type1, typename iterator_type2, typename result_selector_type>
-		void zip(const iterator_type1& first1, const iterator_type1& last1, const iterator_type2& first2, const iterator_type& last2, const result_selector_type& result_selector)
+		template< typename iterator_type1, typename result_selector_type>
+		void zip(const iterator_type1& first, const iterator_type1& last, const result_selector_type& result_selector)
 		{
-			using zip_type = zip_iterator<iterator_type1, iterator_type2, result_selector_type>;
+			using zip_type = zip_iterator<iterator_type, iterator_type1, result_selector_type>;
 			return enumerable<zip_type>
 				(
-				zip_type(first1, last1, first2, last2, result_selector),
-				zip_type(last1, last1, last2, last2));
+				zip_type(_begin, _end, first, last, result_selector),
+				zip_type(_begin, _end, first, last, result_selector));
 		}
-
+		SUPPORT_STL_CONTAINERS_EX(zip,
+			PROTECT_PARAMETERS(typename result_selector_type),
+			PROTECT_PARAMETERS(const result_selector_type& reuslt_selector),
+			PROTECT_PARAMETERS(reuslt_selector));
 		template<typename iterator_type>
 		auto  equal(const iterator_type& t_begin, const iterator_type& t_end)const
 		{
 			return ztl::equal(_begin, _end, t_begin, t_end);
 		}
-		template<typename container_type>
+		SUPPORT_STL_CONTAINERS_EX(equal,
+			PROTECT_PARAMETERS(),
+			PROTECT_PARAMETERS(),
+			PROTECT_PARAMETERS()
+			);
+		/*template<typename container_type>
 		decltype(auto) equal(container_type&& container)const
 		{
 			return equal(std::begin(std::forward<container_type>(container)), std::end(std::forward<container_type>(container)));
@@ -1121,7 +1159,7 @@ namespace ztl
 		decltype(auto) equal(const std::initializer_list<element_type>& e)const
 		{
 			return equal(std::begin(e), std::end(e));
-		}
+		}*/
 
 		/*
 
@@ -1183,7 +1221,7 @@ namespace ztl
 			}
 			return result;
 		}
-
+		
 		template< typename accumulator_type, typename init_type>
 		decltype(auto) aggregate(const accumulator_type& accumulator, const init_type& init)
 		{
@@ -1224,11 +1262,11 @@ namespace ztl
 			using concat_type = concat_iterator<iterator_type, iterator_type2>;
 			return enumerable<concat_type>(concat_type(_begin, _end, first, last), concat_type(_end, _end, last, last));
 		}
-		template< typename container_type>
-		decltype(auto) concat(const container_type& container)
-		{
-			return concat(container.begin(), container.end());
-		}
+		SUPPORT_STL_CONTAINERS_EX(concat,
+			PROTECT_PARAMETERS(),
+			PROTECT_PARAMETERS(),
+			PROTECT_PARAMETERS()
+			);
 		/*
 			Contains<TSource>(IEnumerable<TSource>, TSource)
 			通过使用默认的相等比较器确定序列是否包含指定的元素。
@@ -1313,6 +1351,13 @@ namespace ztl
 			std::set_difference(result1.begin(), result1.end(), result2.begin(), result2.end(), insert_iter, compare);
 			return from_shared(result);
 		}
+
+		SUPPORT_STL_CONTAINERS_EX(except,
+			PROTECT_PARAMETERS(typename compare_type = std::less< void >),
+			PROTECT_PARAMETERS(const compare_type& compare = std::less<void>()),
+			PROTECT_PARAMETERS(compare)
+			);
+
 		/*
 
 		Intersect<TSource>(IEnumerable<TSource>, IEnumerable<TSource>)
@@ -1336,7 +1381,11 @@ namespace ztl
 			std::set_intersection(result1.begin(), result1.end(), result2.begin(), result2.end(), insert_iter, compare);
 			return from_shared(result);
 		}
-
+		SUPPORT_STL_CONTAINERS_EX(intersect,
+			PROTECT_PARAMETERS(typename compare_type = std::less< void >),
+			PROTECT_PARAMETERS(const compare_type& compare = std::less<void>()),
+			PROTECT_PARAMETERS(compare)
+			);
 		/*
 		First<TSource>(IEnumerable<TSource>)
 		返回序列中的第一个元素。
@@ -1549,7 +1598,11 @@ namespace ztl
 			std::set_union(result1.begin(), result1.end(), result2.begin(), result2.end(), insert_iter, compare);
 			return from_shared(result);
 		}
-
+		SUPPORT_STL_CONTAINERS_EX(union_with,
+			PROTECT_PARAMETERS(typename compare_type = std::less< void >),
+			PROTECT_PARAMETERS(const compare_type& compare = std::less<void>()),
+			PROTECT_PARAMETERS(compare)
+			);
 		template<typename selector_type>
 		decltype(auto) any(const selector_type& selector)
 		{
