@@ -48,7 +48,7 @@ void test_from()
 	{
 		auto xs = std::make_shared<vector<int>>(vector<int>({ 1, 2, 3, 4, 5 }));
 		int sum = 0;
-		for(auto x : from(from(ztl::from_shared(xs))))
+		for(auto&& x : from(from(ztl::from_shared(xs))))
 		{
 			sum += x;
 		}
@@ -181,10 +181,10 @@ void test_outer_group_jion()
 		[&uu](auto&& person, auto&& petCollection)
 	{
 		return std::make_pair(person.Name, ztl::from(petCollection).select(uu).to_vector());
-	}).equal({ std::make_pair(string("小明"), vector<const string>({ string("明狗") })),
-		std::make_pair(string("小李"), vector<const string>({ string("李狗1"), string("李狗2") })),
-		std::make_pair(string("小王"), vector<const string>({ string("王狗") })),
-		std::make_pair(string("小菜"), vector<const string>()) }));
+	}).equal({ std::make_pair(string("小明"), vector< string>({ string("明狗") })),
+	std::make_pair(string("小李"), vector< string>({ string("李狗1"), string("李狗2") })),
+		std::make_pair(string("小王"), vector< string>({ string("王狗") })),
+		std::make_pair(string("小菜"), vector< string>()) }));
 }
 void test_inner_group_jion()
 {
@@ -240,9 +240,9 @@ void test_inner_group_jion()
 		[&uu](auto&& person, auto&& petCollection)
 	{
 		return std::make_pair(person.Name, ztl::from(petCollection).select(uu).to_vector());
-	}).equal({ std::make_pair(string("小明"), vector<const string>({ string("明狗") })),
-		std::make_pair(string("小李"), vector<const string>({ string("李狗1"), string("李狗2") })),
-		std::make_pair(string("小王"), vector<const string>({ string("王狗") }))}));
+	}).equal({ std::make_pair(string("小明"), vector< string>({ string("明狗") })),
+		std::make_pair(string("小李"), vector< string>({ string("李狗1"), string("李狗2") })),
+		std::make_pair(string("小王"), vector< string>({ string("王狗") }))}));
 
 }
 ////
@@ -299,7 +299,7 @@ void test_select_many()
 	assert(ztl::from(petOwners).select_many([](auto&& pet_owner)
 	{
 		return pet_owner.Pets;
-	}, [](auto&& pet_owner, auto&& pet)
+	}, [](auto&& , auto&& pet)
 	{
 		return pet;
 	}).equal({ "Scruffy", "Sam", "Walker", "Sugar", "Scratches", "Diesel", "Dusty" }));
@@ -513,6 +513,28 @@ void test_single()
 	vector<int> first = { 1 };
 	from(first).single();
 }
+
+//void other_select_imp_problem()
+//{
+//	vector<int> xs = { 1, 2, 3, 4, 5 };
+//	vector<vector<int>> a = { { 1, 2, 3 } };
+//	//using type = ;
+//	//ztl::return_value(xs);
+//	auto query = ztl::from(a).select([](auto&& element)
+//	{
+//		return element;
+//	}).aggregate([](auto&& init, auto&& element)
+//	{
+//		return init.concat(ztl::from(element));
+//	}, ztl::from_empty<int>());
+//
+//	query.begin() == query.end();
+//	for(auto it = query.begin(); it != query.end(); ++it)
+//	{
+//		auto result = *it;
+//		cout << result;
+//	}
+//}
 int main()
 {
 	test_from();
@@ -541,25 +563,3 @@ int main()
 
 	return 0;
 }
-
-//void other_select_imp_problem()
-//{
-//	vector<int> xs = { 1, 2, 3, 4, 5 };
-//	vector<vector<int>> a = { { 1, 2, 3 } };
-//	//using type = ;
-//	//ztl::return_value(xs);
-//	auto query = ztl::from(a).select([](auto&& element)
-//	{
-//		return element;
-//	}).aggregate([](auto&& init, auto&& element)
-//	{
-//		return init.concat(ztl::from(element));
-//	}, ztl::from_empty<int>());
-//
-//	query.begin() == query.end();
-//	for(auto it = query.begin(); it != query.end(); ++it)
-//	{
-//		auto result = *it;
-//		cout << result;
-//	}
-//}
